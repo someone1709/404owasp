@@ -9,13 +9,23 @@ Students record internship applications (company, role, deadline, status), and N
 The only requirement is Node 22.18 or newer. No database, no `.env`, no API keys.
 
 ```bash
+npm run serve   # one command: build everything, then serve it all on http://localhost:4100
+```
+
+That is the same as running these two separately:
+
+```bash
 npm run build   # installs both halves and builds the frontend
-npm start       # http://localhost:4100 serves the app and the API
+npm start       # one Express server on :4100 serves the built UI and the /api routes
 npm test        # 32 backend tests: judge path and twist included
 ```
 
-While developing, run two terminals: `cd backend && npm run dev` and `cd frontend && npm run dev`.
-Vite proxies `/api` to port 4100.
+While developing with hot reload, run two terminals: `cd backend && npm run dev` and
+`cd frontend && npm run dev`. Vite proxies `/api` to port 4100.
+
+The UI follows the Stitch "editorial job tracker" design (coral light theme, electric-blue dark
+theme, with a toggle). Fonts are bundled from npm (`@fontsource-variable/*`), so the page loads
+nothing from a CDN and works under the strict CSP.
 
 ### Deploy (Render free web service)
 - Build command: `npm run build`
@@ -82,6 +92,9 @@ backend/   Express 5 + TypeScript (runs directly on Node, no build step)
   src/security.ts    security headers, rate limit, workspace id
   src/ics.ts         calendar export
 frontend/  Vite + React + TypeScript (see FRONTEND_SPEC.md)
+  src/App.tsx        page shell, data loading, toasts, actions
+  src/ui/            hero + funnel, summary tiles, cards, form, side panels
+  src/styles.css     design tokens (light + dark) and layout
   src/api.ts         typed API client
   src/types.ts       API contract
 ```

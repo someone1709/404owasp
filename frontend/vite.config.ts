@@ -31,6 +31,8 @@ function cspPlugin(): Plugin {
 export default defineConfig({
   base: './',
   plugins: [react(), cspPlugin()],
+  // Never inline assets as data: URIs; the CSP only allows fonts from 'self'.
+  build: { assetsInlineLimit: 0 },
   // Backend runs on :4100 in dev. Same-origin /api calls, so no CORS and no env vars.
   server: { proxy: { '/api': 'http://localhost:4100' } },
 })
