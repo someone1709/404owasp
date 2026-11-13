@@ -272,7 +272,7 @@ export default function App() {
   return (
     <RouterContext.Provider value={route}>
       <div className="shell">
-        <aside className="rail" aria-label="Sections">
+        <aside className="rail" aria-label="Tools">
           <div className="rail-top">
             <Link to="/" className="rail-logo" aria-label="NextUp overview">
               <Icon name="logo" size={22} />
@@ -281,28 +281,15 @@ export default function App() {
               <Icon name="search" size={19} />
               <span className="rail-tip">Search</span>
             </button>
-            <span className="rail-sep" />
-            {PAGES.map((p) => (
-              <Link key={p.path} to={p.path} className="rail-btn" aria-label={p.label}>
-                <Icon name={p.icon} size={19} />
-                {count(p.path)}
-                <span className="rail-tip">{p.label}</span>
-              </Link>
-            ))}
+            <button type="button" className="rail-btn" onClick={openNew} aria-label="New application">
+              <Icon name="plus" size={19} />
+              <span className="rail-tip">New application</span>
+            </button>
           </div>
           <div className="rail-bottom">
             <button type="button" className="rail-btn" onClick={exportIcs} aria-label="Export deadlines (.ics)">
               <Icon name="download" size={19} />
               <span className="rail-tip">Export deadlines (.ics)</span>
-            </button>
-            <button
-              type="button"
-              className="rail-btn"
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={19} />
-              <span className="rail-tip">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
             </button>
           </div>
         </aside>
