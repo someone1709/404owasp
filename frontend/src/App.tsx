@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
 import { Icon } from './icons'
 import type { IconName } from './icons'
+import { ApplicationsPage } from './pages/Applications'
+import { DeadlinesPage } from './pages/Deadlines'
+import { HomePage } from './pages/Home'
+import { InsightsPage } from './pages/Insights'
+import type { CardActions, PageProps } from './pages/types'
+import { Link, RouterContext, useRouter } from './router'
 import type { Application, Dashboard, Status } from './types'
-import { AppCard } from './ui/Card'
 import { AppForm } from './ui/Form'
-import { FilterBar, Hero, SummaryTiles } from './ui/Overview'
 import type { Filter } from './ui/Overview'
-import { Deadlines, Insights } from './ui/Side'
 
 type Theme = 'light' | 'dark'
 interface Toast {
@@ -19,6 +22,13 @@ interface Toast {
 }
 
 const THEME_KEY = 'nextup:theme'
+
+const PAGES: { path: string; label: string; icon: IconName }[] = [
+  { path: '/', label: 'Overview', icon: 'home' },
+  { path: '/applications', label: 'Applications', icon: 'layers' },
+  { path: '/deadlines', label: 'Deadlines', icon: 'calendar' },
+  { path: '/insights', label: 'Insights', icon: 'chart' },
+]
 
 function initialTheme(): Theme {
   try {
@@ -32,11 +42,10 @@ function initialTheme(): Theme {
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong')
 
-function scrollToId(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
 export default function App() {
+  const route = useRouter()
+  const { path, navigate } = route
+
   const [data, setData] = useState<Dashboard | null>(null)
   const [loadError, setLoadError] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
@@ -118,6 +127,14 @@ export default function App() {
     }
   }, [menuOpen])
 
+  // ----- page title & menu closing on navigation -----
+
+  const page = PAGES.find((p) => p.path === path)
+  useEffect(() => {
+    document.title = `${page ? page.label : 'Not found'} · NextUp`
+    setMenuOpen(false)
+  }, [page, path])
+
   // ----- list -----
 
   const visible = useMemo(() => {
@@ -135,21 +152,22 @@ export default function App() {
     [data],
   )
 
-  /** Scroll to a card and flash it, clearing filters that would hide it. */
+  /** Open a card: go to Applications, clear any filter hiding it, scroll to it and flash it. */
   const jumpTo = useCallback(
     (id: string) => {
       if (!visible.some((i) => i.id === id)) {
         setFilter('all')
         setQuery('')
       }
+      navigate('/applications')
       setFlash({ id, n: Date.now() })
     },
-    [visible],
+    [visible, navigate],
   )
 
   useEffect(() => {
     if (!flash) return
-    document.getElementById(`app-${flash.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    document.getElementById(`app-${flash.id}`)?.scrollIntoView({ block: 'center' }) // instant: reliable right after a page change
     const t = setTimeout(() => setFlash(null), 1800)
     return () => clearTimeout(t)
   }, [flash])
@@ -197,8 +215,8 @@ export default function App() {
     fn()
   }
 
-  const exportIcs = () => api.downloadCalendar().catch((e) => showToast(errorText(e), { tone: 'error' }))
-  const resetDemo = () => mutate(api.resetDemo, () => showToast('Demo data reloaded'))
+  const exportIcs = () => void api.downloadCalendar().catch((e) => showToast(errorText(e), { tone: 'error' }))
+  const resetDemo = () => void mutate(api.resetDemo, () => showToast('Demo data reloaded'))
   const wipeAll = () => {
     if (window.confirm('Delete every application in this browser? This cannot be undone.')) {
       void mutate(api.wipeAll, () => showToast('All data wiped'))
@@ -207,222 +225,230 @@ export default function App() {
 
   const openNew = () => setForm({ editing: null })
 
+  const focusSearch = () => {
+    navigate('/applications')
+    setTimeout(() => document.getElementById('search')?.focus(), 60)
+  }
+
+  const actions: CardActions = { onStatus, onMemo, onEdit: (a) => setForm({ editing: a }), onDelete }
+
   // ----- render -----
 
-  const railItem = (icon: IconName, label: string, onClick: () => void, active = false) => (
-    <button type="button" className={`rail-btn${active ? ' active' : ''}`} onClick={onClick} aria-label={label}>
-      <Icon name={icon} size={19} />
-      <span className="rail-tip">{label}</span>
-    </button>
-  )
+  const needs = data?.summary.needsAction ?? 0
+  const count = (p: string) => (p === '/applications' && needs > 0 ? <span className="nav-count">{needs}</span> : null)
+
+  const pageProps: PageProps | null = data
+    ? {
+        data,
+        visible,
+        filter,
+        setFilter,
+        query,
+        setQuery,
+        flashId: flash?.id ?? null,
+        actions,
+        openNew,
+        jumpTo,
+        exportIcs,
+        resetDemo,
+      }
+    : null
+
+  function renderPage() {
+    if (!page) return <NotFound />
+    if (!pageProps) return loadError ? null : <Skeleton />
+    switch (page.path) {
+      case '/applications':
+        return <ApplicationsPage {...pageProps} />
+      case '/deadlines':
+        return <DeadlinesPage {...pageProps} />
+      case '/insights':
+        return <InsightsPage {...pageProps} />
+      default:
+        return <HomePage {...pageProps} />
+    }
+  }
 
   return (
-    <div className="shell">
-      <aside className="rail" aria-label="Sections">
-        <div className="rail-top">
-          <span className="rail-logo" aria-hidden="true">
-            <Icon name="logo" size={22} />
-          </span>
-          {railItem('search', 'Search', () => {
-            scrollToId('applications')
-            document.getElementById('search')?.focus({ preventScroll: true })
-          })}
-          <span className="rail-sep" />
-          {railItem('layers', 'Applications', () => scrollToId('applications'), true)}
-          {railItem('calendar', 'Upcoming deadlines', () => scrollToId('deadlines'))}
-          {railItem('chart', 'Insights', () => scrollToId('insights'))}
-        </div>
-        <div className="rail-bottom">
-          {railItem('download', 'Export deadlines (.ics)', () => void exportIcs())}
-          {railItem(theme === 'dark' ? 'sun' : 'moon', theme === 'dark' ? 'Light mode' : 'Dark mode', toggleTheme)}
-        </div>
-      </aside>
-
-      <main className="main">
-        <header className="topbar">
-          <div className="brand">
-            <span className="brand-logo" aria-hidden="true">
-              <Icon name="logo" size={20} />
-            </span>
-            <span className="brand-text">
-              <strong>NextUp</strong>
-              <span>Internship tracker</span>
-            </span>
-            <span className="dot good" title="Connected" />
+    <RouterContext.Provider value={route}>
+      <div className="shell">
+        <aside className="rail" aria-label="Sections">
+          <div className="rail-top">
+            <Link to="/" className="rail-logo" aria-label="NextUp overview">
+              <Icon name="logo" size={22} />
+            </Link>
+            <button type="button" className="rail-btn" onClick={focusSearch} aria-label="Search applications">
+              <Icon name="search" size={19} />
+              <span className="rail-tip">Search</span>
+            </button>
+            <span className="rail-sep" />
+            {PAGES.map((p) => (
+              <Link key={p.path} to={p.path} className="rail-btn" aria-label={p.label}>
+                <Icon name={p.icon} size={19} />
+                {count(p.path)}
+                <span className="rail-tip">{p.label}</span>
+              </Link>
+            ))}
           </div>
-
-          <nav className="topnav" aria-label="Jump to">
-            <button type="button" className="active" onClick={() => scrollToId('overview')}>
-              Overview
+          <div className="rail-bottom">
+            <button type="button" className="rail-btn" onClick={exportIcs} aria-label="Export deadlines (.ics)">
+              <Icon name="download" size={19} />
+              <span className="rail-tip">Export deadlines (.ics)</span>
             </button>
-            <button type="button" onClick={() => scrollToId('applications')}>
-              Applications
-            </button>
-            <button type="button" onClick={() => scrollToId('deadlines')}>
-              Deadlines
-            </button>
-            <button type="button" onClick={() => scrollToId('insights')}>
-              Insights
-            </button>
-          </nav>
-
-          <div className="top-actions">
             <button
               type="button"
-              className="theme-toggle"
+              className="rail-btn"
               onClick={toggleTheme}
-              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              <Icon name={theme === 'dark' ? 'moon' : 'sun'} size={15} />
-              <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={19} />
+              <span className="rail-tip">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
             </button>
-            <button type="button" className="btn primary new-btn" onClick={openNew}>
-              <Icon name="plus" size={17} />
-              <span>New application</span>
-            </button>
-            <div className="menu" ref={menuRef}>
+          </div>
+        </aside>
+
+        <main className="main">
+          <header className="topbar">
+            <Link to="/" className="brand" aria-label="NextUp overview">
+              <span className="brand-logo" aria-hidden="true">
+                <Icon name="logo" size={20} />
+              </span>
+              <span className="brand-text">
+                <strong>NextUp</strong>
+                <span>Internship tracker</span>
+              </span>
+              <span className="dot good" title="Connected" />
+            </Link>
+
+            <nav className="topnav" aria-label="Pages">
+              {PAGES.map((p) => (
+                <Link key={p.path} to={p.path}>
+                  {p.label}
+                  {count(p.path)}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="top-actions">
               <button
                 type="button"
-                className="icon-btn round"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                aria-label="More actions"
-                onClick={() => setMenuOpen((o) => !o)}
+                className="theme-toggle"
+                onClick={toggleTheme}
+                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
               >
-                <Icon name="more" size={18} />
+                <Icon name={theme === 'dark' ? 'moon' : 'sun'} size={15} />
+                <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
               </button>
-              {menuOpen && (
-                <div className="menu-pop" role="menu">
-                  <button type="button" role="menuitem" onClick={menuAction(() => void exportIcs())}>
-                    <Icon name="calendar" size={16} /> Export deadlines (.ics)
-                  </button>
-                  <button type="button" role="menuitem" onClick={menuAction(() => void resetDemo())}>
-                    <Icon name="reset" size={16} /> Reset demo data
-                  </button>
-                  <span className="menu-sep" />
-                  <button type="button" role="menuitem" className="danger" onClick={menuAction(wipeAll)}>
-                    <Icon name="wipe" size={16} /> Wipe all data
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
-        {loadError && (
-          <div className="banner" role="alert">
-            <Icon name="alert" size={18} />
-            <span>
-              <strong>Can't reach the server.</strong> {loadError}
-            </span>
-            <button type="button" className="mini-btn" onClick={() => void reload()}>
-              Retry
-            </button>
-          </div>
-        )}
-
-        {!data ? (
-          !loadError && <Skeleton />
-        ) : (
-          <>
-            <Hero data={data} />
-            <SummaryTiles data={data} filter={filter} onFilter={setFilter} />
-
-            <div className="columns">
-              <section className="list-col" aria-label="Applications">
-                <FilterBar data={data} filter={filter} onFilter={setFilter} query={query} onQuery={setQuery} />
-
-                {data.summary.total === 0 ? (
-                  <div className="card empty">
-                    <h3>No applications yet</h3>
-                    <p className="muted">Add one to see what needs action next, or load the demo data to explore.</p>
-                    <div className="empty-actions">
-                      <button type="button" className="btn ghost" onClick={() => void resetDemo()}>
-                        <Icon name="reset" size={16} /> Load demo data
-                      </button>
-                      <button type="button" className="btn primary" onClick={openNew}>
-                        <Icon name="plus" size={16} /> Add your first application
-                      </button>
-                    </div>
-                  </div>
-                ) : visible.length === 0 ? (
-                  <div className="card empty">
-                    {filter === 'action' && !query ? (
-                      <>
-                        <h3>You're all caught up ✓</h3>
-                        <p className="muted">Nothing is overdue, due within 3 days, or waiting on a follow-up.</p>
-                      </>
-                    ) : (
-                      <>
-                        <h3>No matches</h3>
-                        <p className="muted">Try another filter or search.</p>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="cards">
-                    {visible.map((app) => (
-                      <AppCard
-                        key={app.id}
-                        app={app}
-                        today={data.today}
-                        flash={flash?.id === app.id}
-                        onStatus={onStatus}
-                        onMemo={onMemo}
-                        onEdit={(a) => setForm({ editing: a })}
-                        onDelete={onDelete}
-                      />
-                    ))}
+              <button type="button" className="btn primary new-btn" onClick={openNew}>
+                <Icon name="plus" size={17} />
+                <span>New application</span>
+              </button>
+              <div className="menu" ref={menuRef}>
+                <button
+                  type="button"
+                  className="icon-btn round"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  aria-label="More actions"
+                  onClick={() => setMenuOpen((o) => !o)}
+                >
+                  <Icon name="more" size={18} />
+                </button>
+                {menuOpen && (
+                  <div className="menu-pop" role="menu">
+                    <button type="button" role="menuitem" onClick={menuAction(exportIcs)}>
+                      <Icon name="calendar" size={16} /> Export deadlines (.ics)
+                    </button>
+                    <button type="button" role="menuitem" onClick={menuAction(resetDemo)}>
+                      <Icon name="reset" size={16} /> Reset demo data
+                    </button>
+                    <span className="menu-sep" />
+                    <button type="button" role="menuitem" className="danger" onClick={menuAction(wipeAll)}>
+                      <Icon name="wipe" size={16} /> Wipe all data
+                    </button>
                   </div>
                 )}
-              </section>
-
-              <aside className="side-col">
-                <Deadlines data={data} onJump={jumpTo} onExport={() => void exportIcs()} />
-                <Insights data={data} />
-              </aside>
+              </div>
             </div>
-          </>
-        )}
-      </main>
+          </header>
 
-      <button type="button" className="fab" onClick={openNew} aria-label="New application">
-        <Icon name="plus" size={24} />
-      </button>
-
-      {form && (
-        <AppForm
-          key={form.editing?.id ?? 'new'}
-          editing={form.editing}
-          resumeVersions={resumeVersions}
-          onClose={() => setForm(null)}
-          onSaved={(saved, created) => void onSaved(saved, created)}
-        />
-      )}
-
-      <div className="toast-zone" aria-live="polite">
-        {toast && (
-          <div key={toast.key} className={`toast ${toast.tone}`}>
-            <span className="toast-dot" />
-            <span>{toast.text}</span>
-            {toast.undo && (
-              <button
-                type="button"
-                className="toast-undo"
-                onClick={() => {
-                  const undo = toast.undo
-                  setToast(null)
-                  undo?.()
-                }}
-              >
-                Undo
+          {loadError && (
+            <div className="banner" role="alert">
+              <Icon name="alert" size={18} />
+              <span>
+                <strong>Can't reach the server.</strong> {loadError}
+              </span>
+              <button type="button" className="mini-btn" onClick={() => void reload()}>
+                Retry
               </button>
-            )}
-            <button type="button" className="toast-x" onClick={() => setToast(null)} aria-label="Dismiss">
-              <Icon name="x" size={14} />
-            </button>
-          </div>
+            </div>
+          )}
+
+          {renderPage()}
+        </main>
+
+        <nav className="bottomnav" aria-label="Pages">
+          {PAGES.map((p) => (
+            <Link key={p.path} to={p.path}>
+              <Icon name={p.icon} size={20} />
+              {p.label}
+              {count(p.path)}
+            </Link>
+          ))}
+        </nav>
+
+        <button type="button" className="fab" onClick={openNew} aria-label="New application">
+          <Icon name="plus" size={24} />
+        </button>
+
+        {form && (
+          <AppForm
+            key={form.editing?.id ?? 'new'}
+            editing={form.editing}
+            resumeVersions={resumeVersions}
+            onClose={() => setForm(null)}
+            onSaved={(saved, created) => void onSaved(saved, created)}
+          />
         )}
+
+        <div className="toast-zone" aria-live="polite">
+          {toast && (
+            <div key={toast.key} className={`toast ${toast.tone}`}>
+              <span className="toast-dot" />
+              <span>{toast.text}</span>
+              {toast.undo && (
+                <button
+                  type="button"
+                  className="toast-undo"
+                  onClick={() => {
+                    const undo = toast.undo
+                    setToast(null)
+                    undo?.()
+                  }}
+                >
+                  Undo
+                </button>
+              )}
+              <button type="button" className="toast-x" onClick={() => setToast(null)} aria-label="Dismiss">
+                <Icon name="x" size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </RouterContext.Provider>
+  )
+}
+
+function NotFound() {
+  return (
+    <div className="card empty">
+      <h3>Page not found</h3>
+      <p className="muted">That address doesn't match any page in NextUp.</p>
+      <div className="empty-actions">
+        <Link to="/" className="btn primary">
+          Back to overview
+        </Link>
       </div>
     </div>
   )

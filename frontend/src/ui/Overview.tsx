@@ -41,6 +41,27 @@ function FunnelArcs({ funnel }: { funnel: Dashboard['insights']['funnel'] }) {
   )
 }
 
+export function FunnelCard({ funnel }: { funnel: Dashboard['insights']['funnel'] }) {
+  return (
+    <div className="card hero-chart" id="insights-funnel">
+      <FunnelArcs funnel={funnel} />
+      <div className="legend">
+        <div className="legend-head">
+          <Icon name="trend" size={14} /> Pipeline funnel
+        </div>
+        {funnel.map((f) => (
+          <div key={f.stage} className={`legend-row${f.stage === 'Offer' ? ' hot' : ''}`}>
+            <span>{f.stage}</span>
+            <span className="mono">
+              {f.count} · {f.pct}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function Hero({ data }: { data: Dashboard }) {
   const n = data.summary.needsAction
   const thisWeek = data.deadlines.filter((d) => d.daysLeft >= 0 && d.daysLeft <= 7).length
@@ -74,22 +95,7 @@ export function Hero({ data }: { data: Dashboard }) {
         </div>
       </div>
 
-      <div className="card hero-chart" id="insights-funnel">
-        <FunnelArcs funnel={data.insights.funnel} />
-        <div className="legend">
-          <div className="legend-head">
-            <Icon name="trend" size={14} /> Pipeline funnel
-          </div>
-          {data.insights.funnel.map((f) => (
-            <div key={f.stage} className={`legend-row${f.stage === 'Offer' ? ' hot' : ''}`}>
-              <span>{f.stage}</span>
-              <span className="mono">
-                {f.count} · {f.pct}%
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <FunnelCard funnel={data.insights.funnel} />
     </section>
   )
 }

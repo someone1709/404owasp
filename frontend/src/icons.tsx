@@ -27,6 +27,7 @@ const PATHS = {
   trend: 'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6',
   wipe: 'M3 6h18M19 6l-1 14H6L5 6M9 6V4h6v2M9.5 10.5l5 5M14.5 10.5l-5 5',
   chevron: 'M6 9l6 6 6-6',
+  home: 'M3 10.5L12 3l9 7.5V21H3zM9 21v-6h6v6',
 }
 
 export type IconName = keyof typeof PATHS

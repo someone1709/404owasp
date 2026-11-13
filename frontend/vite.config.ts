@@ -29,7 +29,7 @@ function cspPlugin(): Plugin {
 }
 
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [react(), cspPlugin()],
   // Never inline assets as data: URIs; the CSP only allows fonts from 'self'.
   build: { assetsInlineLimit: 0 },

@@ -23,6 +23,10 @@ npm test        # 32 backend tests: judge path and twist included
 While developing with hot reload, run two terminals: `cd backend && npm run dev` and
 `cd frontend && npm run dev`. Vite proxies `/api` to port 4100.
 
+The app has four pages with their own URLs: `/` (overview), `/applications`, `/deadlines` and
+`/insights`. The Express server answers every non-API path with the app, so refreshing or sharing a
+link to any page works.
+
 The UI follows the Stitch "editorial job tracker" design (coral light theme, electric-blue dark
 theme, with a toggle). Fonts are bundled from npm (`@fontsource-variable/*`), so the page loads
 nothing from a CDN and works under the strict CSP.
@@ -92,7 +96,9 @@ backend/   Express 5 + TypeScript (runs directly on Node, no build step)
   src/security.ts    security headers, rate limit, workspace id
   src/ics.ts         calendar export
 frontend/  Vite + React + TypeScript (see FRONTEND_SPEC.md)
-  src/App.tsx        page shell, data loading, toasts, actions
+  src/App.tsx        app shell: navigation, shared state, data loading, toasts, actions
+  src/router.tsx     tiny History-API router (real URLs, Back/Forward, no dependency)
+  src/pages/         Overview (/), Applications, Deadlines, Insights
   src/ui/            hero + funnel, summary tiles, cards, form, side panels
   src/styles.css     design tokens (light + dark) and layout
   src/api.ts         typed API client
