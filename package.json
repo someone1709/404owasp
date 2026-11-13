@@ -8,6 +8,7 @@
   "scripts": {
     "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install",
     "start": "node backend/src/server.ts",
+    "serve": "npm run build && npm start",
     "test": "npm --prefix backend test"
   }
 }

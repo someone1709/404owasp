@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Job Application Tracker - Edit Application Modal</title>
+<!-- Tailwind CSS v3 with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            display: ['"Space Grotesk"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              coral: '#F25438',
+              'coral-hover': '#DD442B',
+              'coral-light': 'rgba(242, 84, 56, 0.08)',
+              charcoal: '#121316',
+              surface: '#F8F9FA',
+              border: '#E8ECEF',
+            }
+          },
+          boxShadow: {
+            'modal': '0 25px 60px -15px rgba(26, 28, 35, 0.22), 0 0 0 1px rgba(242, 84, 56, 0.08)',
+            'pill': '0 2px 8px -2px rgba(18, 19, 22, 0.06)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: CustomStyles -->
+<style data-purpose="custom-scrollbars-and-accents">
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #D1D5DB;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #9CA3AF;
+    }
+    
+    /* Radial graphic gradient simulation from reference */
+    .hero-radial-mesh {
+      background: radial-gradient(circle at 65% 30%, rgba(242, 84, 56, 0.18) 0%, rgba(242, 84, 56, 0.04) 42%, rgba(255, 255, 255, 0) 70%);
+    }
+  </style>
+<!-- END: CustomStyles -->
+</head>
+<body class="font-sans bg-[#0d0e12] text-white antialiased min-h-screen relative overflow-hidden select-none">
+<!-- BEGIN: BackgroundDashboard (Dimmed & Blurred Backdrop) -->
+<div class="filter blur-md brightness-90 transform scale-[0.99] origin-top transition-all duration-300 pointer-events-none min-h-screen flex flex-col" data-purpose="dashboard-scaffold"><!-- Top Navigation Bar -->
+<header class="h-20 bg-[#12141a]/90 border-b border-[#212530] px-8 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold font-display shadow-md shadow-blue-500/20">
+          R
+        </div>
+<div class="w-9 h-9 rounded-full bg-[#1e222d] border-2 border-[#2b3040] overflow-hidden shadow-inner flex items-center justify-center text-xs text-blue-300 font-semibold">
+AV
+</div>
+</div>
+<nav class="hidden md:flex items-center bg-[#181b24] rounded-full p-1 border border-[#262a38]">
+<span class="px-5 py-2 text-xs font-semibold rounded-full bg-blue-600 text-white shadow-sm">Overview</span>
+<span class="px-5 py-2 text-xs font-medium text-slate-400 hover:text-white">Vacancies</span>
+<span class="px-5 py-2 text-xs font-medium text-slate-400 hover:text-white">Company reviews</span>
+<span class="px-5 py-2 text-xs font-medium text-slate-400 hover:text-white">Community</span>
+</nav>
+<div class="flex items-center gap-3">
+<button class="px-4 py-2 text-xs font-semibold text-slate-300">Hire</button>
+<button class="px-5 py-2.5 bg-blue-600 text-white text-xs font-semibold rounded-full shadow-sm">Post a Job</button>
+</div>
+</header>
+<!-- Subheader with AI Job Match Hero -->
+<main class="flex-1 p-8 max-w-7xl mx-auto w-full space-y-6">
+<div class="flex items-start justify-between">
+<div>
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-semibold mb-3">
+<span>✦ AI - Powered Matcher</span>
+</div>
+<h1 class="text-4xl font-extrabold font-display tracking-tight text-white">YOUR<br/><span class="font-light text-slate-400">JOB MATCH</span></h1>
+<p class="text-slate-400 text-sm mt-2 max-w-sm">AI has carefully reviewed your targets and discovered curated matches.</p>
+</div>
+<!-- Arch Visual Placeholder from Snapshot -->
+<div class="w-80 h-40 bg-gradient-to-t from-blue-600/30 to-blue-600/5 rounded-t-full border-t-2 border-blue-500 relative flex items-end justify-center pb-2">
+<span class="text-xs font-bold text-slate-400">Talent recruitment momentum</span>
+</div>
+</div>
+<!-- Filter Bar -->
+<div class="flex items-center gap-3 py-3 border-y border-[#212530]">
+<span class="px-3.5 py-1.5 bg-[#161822] border border-[#282d3d] text-slate-300 rounded-full text-xs font-medium">Remote</span>
+<span class="px-3.5 py-1.5 bg-[#161822] border border-[#282d3d] text-slate-300 rounded-full text-xs font-medium">Senior</span>
+<span class="px-3.5 py-1.5 bg-[#161822] border border-[#282d3d] text-slate-300 rounded-full text-xs font-medium">$160k - $220k</span>
+<span class="px-3.5 py-1.5 bg-[#161822] border border-[#282d3d] text-slate-300 rounded-full text-xs font-medium">Full time</span>
+</div>
+<!-- Application Cards -->
+<div class="grid grid-cols-4 gap-5">
+<div class="bg-[#161922] p-5 rounded-3xl border border-[#252a3a] shadow-sm space-y-4">
+<div class="flex justify-between items-start">
+<div><h3 class="font-bold text-base text-white">Wise</h3><p class="text-xs text-slate-400">UX/UI Designer • 2h ago</p></div>
+<span class="text-xs font-semibold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">92%</span>
+</div>
+<div class="h-24 bg-[#11131a] rounded-2xl flex items-center justify-center border border-dashed border-[#252a3a]"><span class="text-xs text-slate-500">Match score graphic</span></div>
+</div>
+<div class="bg-[#161922] p-5 rounded-3xl border border-[#252a3a] shadow-sm space-y-4">
+<div class="flex justify-between items-start">
+<div><h3 class="font-bold text-base text-white">Amazon</h3><p class="text-xs text-slate-400">UX/UI Designer • 7h ago</p></div>
+<span class="text-xs font-semibold text-slate-300 bg-[#1f2433] px-2 py-0.5 rounded-full">84%</span>
+</div>
+<div class="h-24 bg-[#11131a] rounded-2xl flex items-center justify-center border border-dashed border-[#252a3a]"><span class="text-xs text-slate-500">Match score graphic</span></div>
+</div>
+<div class="bg-[#161922] p-5 rounded-3xl border border-[#252a3a] shadow-sm space-y-4">
+<div class="flex justify-between items-start">
+<div><h3 class="font-bold text-base text-white">Slack</h3><p class="text-xs text-slate-400">UX/UI Designer • 9h ago</p></div>
+<span class="text-xs font-semibold text-slate-300 bg-[#1f2433] px-2 py-0.5 rounded-full">63%</span>
+</div>
+<div class="h-24 bg-[#11131a] rounded-2xl flex items-center justify-center border border-dashed border-[#252a3a]"><span class="text-xs text-slate-500">Match score graphic</span></div>
+</div>
+<div class="bg-[#161922] p-5 rounded-3xl border border-[#252a3a] shadow-sm space-y-4">
+<div class="flex justify-between items-start">
+<div><h3 class="font-bold text-base text-white">Google</h3><p class="text-xs text-slate-400">UX/UI Designer • 11h ago</p></div>
+<span class="text-xs font-semibold text-slate-300 bg-[#1f2433] px-2 py-0.5 rounded-full">81%</span>
+</div>
+<div class="h-24 bg-[#11131a] rounded-2xl flex items-center justify-center border border-dashed border-[#252a3a]"><span class="text-xs text-slate-500">Match score graphic</span></div>
+</div>
+</div>
+</main></div>
+<!-- END: BackgroundDashboard -->
+<!-- BEGIN: BackdropScrim -->
+<div class="fixed inset-0 bg-black/75 backdrop-blur-md transition-opacity z-40 flex items-center justify-center p-4 sm:p-6 md:p-8 overflow-y-auto" data-purpose="modal-backdrop-layer">
+<!-- BEGIN: EditApplicationModal -->
+<div aria-labelledby="modal-headline" aria-modal="true" class="relative w-full max-w-2xl bg-[#161820] rounded-[28px] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),0_0_40px_rgba(37,99,235,0.12)] border border-[#272b3a] p-6 sm:p-8 my-auto transition-all transform animate-in fade-in zoom-in-95 duration-200 text-white" data-purpose="application-form-modal" role="dialog">
+<!-- BEGIN: ModalHeader -->
+<header class="flex items-start justify-between pb-6 border-b border-[#262a39]">
+<div class="flex items-start gap-3.5">
+<!-- Vibrant Electric Blue Badge Icon -->
+<div class="mt-0.5 w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/30 shrink-0">
+<svg class="w-5 h-5 stroke-[2.2]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<div>
+<h2 class="text-xl sm:text-2xl font-bold font-display tracking-tight text-white" id="modal-headline">Add / Edit Application</h2>
+<p class="text-xs sm:text-sm text-slate-400 mt-1 font-normal leading-relaxed">Track new opportunities or keep pipeline metadata, milestones, and upcoming deadlines synced.</p>
+</div>
+</div>
+<!-- Close Button with smooth muted hover -->
+<button aria-label="Close modal" class="w-8 h-8 rounded-full bg-[#1f2330] hover:bg-[#2b3042] text-slate-400 hover:text-white flex items-center justify-center transition-colors -mr-1 border border-[#2b3040]" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+</svg>
+</button>
+</header>
+<!-- END: ModalHeader -->
+<!-- BEGIN: ModalFormBody -->
+<form class="mt-6 space-y-5" data-purpose="application-editor-form" onsubmit="event.preventDefault();">
+<!-- Row 1: Company Name & Role Title (With Validation Errors) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<!-- Company Name Input with Explicit Validation Error State in Dark Mode -->
+<div class="space-y-1.5" data-purpose="form-group-company">
+<label class="block text-xs font-bold uppercase tracking-wider text-slate-300" for="company-name">
+              Company Name <span class="text-red-400">*</span>
+</label>
+<div class="relative">
+<input aria-describedby="company-name-error" aria-invalid="true" class="w-full h-11 px-3.5 bg-red-950/20 border border-red-500 rounded-xl text-sm font-medium text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/30 transition-all" id="company-name" name="company_name" placeholder="e.g. Stripe, Wise, Linear" type="text" value=""/>
+<div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-red-400">
+<svg class="h-4 w-4" fill="currentColor" viewbox="0 0 20 20">
+<path clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" fill-rule="evenodd"></path>
+</svg>
+</div>
+</div>
+<!-- Inline Error Message -->
+<p class="text-xs font-semibold text-red-400 flex items-center gap-1 mt-1" id="company-name-error">
+<span>⚠️</span> Company name is required
+</p>
+</div>
+<!-- Role Title Input -->
+<div class="space-y-1.5" data-purpose="form-group-role">
+<label class="block text-xs font-bold uppercase tracking-wider text-slate-300" for="role-title">
+              Role Title <span class="text-blue-400">*</span>
+</label>
+<input class="w-full h-11 px-3.5 bg-[#101217] border border-[#272b3a] rounded-xl text-sm font-medium text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all" id="role-title" name="role_title" placeholder="e.g. Senior Product Designer" type="text" value="Staff UX Designer"/>
+</div>
+</div>
+<!-- Row 2: Status Dropdown & Deadline Date Picker (With Validation Error) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<!-- Status Dropdown Pill -->
+<div class="space-y-1.5" data-purpose="form-group-status">
+<label class="block text-xs font-bold uppercase tracking-wider text-slate-300" for="application-status">
+              Pipeline Status
+            </label>
+<div class="relative">
+<select class="w-full h-11 px-3.5 pr-10 appearance-none bg-[#101217] border border-[#272b3a] rounded-xl text-sm font-semibold text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all cursor-pointer" id="application-status" name="status">
+<option class="bg-[#161820] text-white" value="saved">Saved</option>
+<option class="bg-[#161820] text-white" value="applied">Applied</option>
+<option class="bg-[#161820] text-white" selected="" value="interviewing-round-2">Interviewing (Round 2)</option>
+<option class="bg-[#161820] text-white" value="offer">Offer</option>
+<option class="bg-[#161820] text-white" value="rejected">Rejected</option>
+</select>
+<div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+<svg class="h-4 w-4 stroke-[2.5]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</div>
+</div>
+<!-- Deadline Date with Validation Error in Dark Mode -->
+<div class="space-y-1.5" data-purpose="form-group-deadline">
+<label class="block text-xs font-bold uppercase tracking-wider text-slate-300" for="deadline-date">
+              Deadline Date <span class="text-red-400">*</span>
+</label>
+<div class="relative">
+<input aria-describedby="deadline-error" aria-invalid="true" class="w-full h-11 px-3.5 bg-red-950/20 border border-red-500 rounded-xl text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 transition-all [color-scheme:dark]" id="deadline-date" name="deadline" type="date" value="2024-01-15"/>
+<div class="absolute inset-y-0 right-8 pr-2 flex items-center pointer-events-none text-red-400">
+<svg class="h-4 w-4" fill="currentColor" viewbox="0 0 20 20">
+<path clip-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" fill-rule="evenodd"></path>
+</svg>
+</div>
+</div>
+<!-- Inline Error Message -->
+<p class="text-xs font-semibold text-red-400 flex items-center gap-1 mt-1" id="deadline-error">
+<span>⚠️</span> Please select a valid deadline date in the future
+</p>
+</div>
+</div>
+<!-- Row 3: Next Step & Priority Segmented Control -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<!-- Next Step Input -->
+<div class="space-y-1.5" data-purpose="form-group-next-step">
+<label class="block text-xs font-bold uppercase tracking-wider text-slate-300" for="next-step">
+              Next Action Step
+            </label>
+<input class="w-full h-11 px-3.5 bg-[#101217] border border-[#272b3a] rounded-xl text-sm font-medium text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all" id="next-step" name="next_step" placeholder="e.g. Follow up with hiring manager" type="text" value="Submit portfolio case study"/>
+</div>
+<!-- Priority Segmented Control with Electric Blue Active State -->
+<div class="space-y-1.5" data-purpose="form-group-priority">
+<label class="block text-xs font-bold uppercase tracking-wider text-slate-300">
+              Match Priority
+            </label>
+<div class="h-11 bg-[#101217] p-1 rounded-xl flex items-center gap-1 border border-[#272b3a]">
+<label class="flex-1 text-center cursor-pointer">
+<input checked="" class="peer sr-only" name="priority" type="radio" value="high"/>
+<span class="block py-1.5 text-xs font-semibold rounded-lg text-slate-400 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:shadow-md peer-checked:shadow-blue-600/30 transition-all">
+                  High Priority
+                </span>
+</label>
+<label class="flex-1 text-center cursor-pointer">
+<input class="peer sr-only" name="priority" type="radio" value="medium"/>
+<span class="block py-1.5 text-xs font-semibold rounded-lg text-slate-400 peer-checked:bg-[#202432] peer-checked:text-white peer-checked:shadow-pill transition-all">
+                  Medium
+                </span>
+</label>
+<label class="flex-1 text-center cursor-pointer">
+<input class="peer sr-only" name="priority" type="radio" value="low"/>
+<span class="block py-1.5 text-xs font-semibold rounded-lg text-slate-400 peer-checked:bg-[#202432] peer-checked:text-white peer-checked:shadow-pill transition-all">
+                  Low
+                </span>
+</label>
+</div>
+</div>
+</div>
+<!-- Row 4: Reason / Context Text Area -->
+<div class="space-y-1.5" data-purpose="form-group-context">
+<div class="flex items-center justify-between">
+<label class="block text-xs font-bold uppercase tracking-wider text-slate-300" for="context-notes">
+              Reason / Interview Context Notes
+            </label>
+<span class="text-[11px] font-medium text-slate-500">Optional</span>
+</div>
+<textarea class="w-full p-3.5 bg-[#101217] border border-[#272b3a] rounded-xl text-sm font-medium text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all resize-none leading-relaxed" id="context-notes" name="notes" placeholder="Add context, recruiter feedback, or interview prep requirements..." rows="3">Recruiter requested design system examples before stage 2</textarea>
+</div>
+</form>
+<!-- END: ModalFormBody -->
+<!-- BEGIN: ModalFooter -->
+<footer class="mt-7 pt-5 border-t border-[#262a39] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+<!-- Draft Status Helper -->
+<div class="flex items-center gap-2 text-xs font-medium text-slate-400">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400/50"></span>
+<span>Autosaved draft available</span>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-3 justify-end">
+<button class="px-5 py-2.5 rounded-full border border-[#2e3344] bg-[#1a1c26] text-xs font-semibold text-slate-300 hover:text-white hover:bg-[#232736] transition-colors" type="button">
+            Cancel
+          </button>
+<button class="px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 hover:shadow-blue-500/50 transform active:scale-95 transition-all flex items-center gap-1.5" type="submit">
+<span>Save Application</span>
+<svg class="w-4 h-4 stroke-[2.2]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</footer>
+<!-- END: ModalFooter -->
+</div>
+<!-- END: EditApplicationModal -->
+</div>
+<!-- END: BackdropScrim -->
+</body></html>
