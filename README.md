@@ -23,9 +23,31 @@ npm test        # 32 backend tests: judge path and twist included
 While developing with hot reload, run two terminals: `cd backend && npm run dev` and
 `cd frontend && npm run dev`. Vite proxies `/api` to port 4100.
 
-The app has four pages with their own URLs: `/` (overview), `/applications`, `/deadlines` and
-`/insights`. The Express server answers every non-API path with the app, so refreshing or sharing a
-link to any page works.
+The app has five pages with their own URLs: `/` (overview), `/applications`, `/deadlines`,
+`/insights` and `/resume` (Resume Lab). The Express server answers every non-API path with the app,
+so refreshing or sharing a link to any page works.
+
+**Extras beyond the brief**
+
+| Feature | Where |
+|---|---|
+| Full-screen menu (topographic lines, huge type, next-deadline widget) | **Menu** button or `M` |
+| Command palette: jump to pages, run actions, open any application | `Ctrl/Cmd+K` or `/` |
+| Keyboard shortcuts | `N` new application, `1`-`5` pages, `M` menu |
+| Pipeline **board** (drag a card to change its status, or use the arrows) | Applications → Board |
+| "Do this next" card for the single most urgent item | Overview |
+| Live deadline ticker | Overview |
+| 15-day deadline timeline | Deadlines |
+| Role dropdown (12 common internship roles, or "Other") and resume file drop zone | New application form |
+| **Resume Lab**: all resume versions, files, and interview rate per version | Resume Lab |
+| Scroll choreography: elements rise in from depth, cards tilt in 3D by viewport position, hero parallax, marquee skews with scroll speed, charts draw in, split-letter headlines, scroll-progress rail and back-to-top ring | everywhere (all effects skipped with reduced motion) |
+| **Pipeline in 3D**: a pinned scroll story where the five status layers rotate and pull apart, one stage at a time | bottom of Overview |
+| Hover polish: rolling-letter links, sliding nav pill, magnetic buttons, cursor ring, card glow, confetti on an offer | everywhere (off on touch and with reduced motion) |
+
+**Resume files stay in the browser.** They are stored in IndexedDB and never sent to the server, so
+there is no upload endpoint to attack. Files are checked by extension, size (2 MB) and real file
+signature (PDF, DOCX and DOC headers), are only ever downloaded (never rendered), and the file name
+is shown as plain text.
 
 The UI follows the Stitch "editorial job tracker" design (coral light theme, electric-blue dark
 theme, with a toggle). Fonts are bundled from npm (`@fontsource-variable/*`), so the page loads
@@ -98,7 +120,10 @@ backend/   Express 5 + TypeScript (runs directly on Node, no build step)
 frontend/  Vite + React + TypeScript (see FRONTEND_SPEC.md)
   src/App.tsx        app shell: navigation, shared state, data loading, toasts, actions
   src/router.tsx     tiny History-API router (real URLs, Back/Forward, no dependency)
-  src/pages/         Overview (/), Applications, Deadlines, Insights
+  src/pages/         Overview (/), Applications, Deadlines, Insights, Resume Lab
+  src/resumeStore.ts local resume vault (IndexedDB, never uploaded)
+  src/fx.ts          pointer effects, scroll engine (reveals, depth, pinning), confetti
+  src/fx.css         menu, palette, board, timeline, resume and hover styles
   src/ui/            hero + funnel, summary tiles, cards, form, side panels
   src/styles.css     design tokens (light + dark) and layout
   src/api.ts         typed API client
@@ -114,6 +139,7 @@ frontend/  Vite + React + TypeScript (see FRONTEND_SPEC.md)
 | Insecure design | All validation happens on the server. Only known fields are accepted, so a client can't set `id`, `history` or `createdAt` |
 | Resource abuse | 20 kB body limit, 200 applications per workspace, 500 workspaces, 600 requests/min per IP |
 | Misconfiguration | Security headers (`nosniff`, frame denial, no referrer). `X-Powered-By` is off. No stack traces are sent to clients |
+| Untrusted files | Resumes never leave the browser (no upload endpoint). Type, size and file signature are validated, files are only downloaded, never opened or rendered |
 | Secrets & privacy | No secrets, no `.env`, no external calls, no tracking. All demo data is fictional (`.example` domains) |
 
 ## Known limits

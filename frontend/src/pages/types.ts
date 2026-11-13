@@ -22,4 +22,7 @@ export interface PageProps {
   jumpTo: (id: string) => void
   exportIcs: () => void
   resetDemo: () => void
+  notify: (text: string, tone?: 'info' | 'error') => void
+  view: 'list' | 'board'
+  setView: (v: 'list' | 'board') => void
 }

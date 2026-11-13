@@ -2,15 +2,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from './api'
 import { Icon } from './icons'
 import type { IconName } from './icons'
+import { confetti, usePointerFx, useScrollFx } from './fx'
 import { ApplicationsPage } from './pages/Applications'
 import { DeadlinesPage } from './pages/Deadlines'
 import { HomePage } from './pages/Home'
 import { InsightsPage } from './pages/Insights'
+import { ResumePage } from './pages/Resume'
 import type { CardActions, PageProps } from './pages/types'
 import { Link, RouterContext, useRouter } from './router'
 import type { Application, Dashboard, Status } from './types'
+import { Cursor } from './ui/Cursor'
 import { AppForm } from './ui/Form'
+import { MenuOverlay } from './ui/MenuOverlay'
 import type { Filter } from './ui/Overview'
+import { Palette } from './ui/Palette'
+import type { PaletteItem } from './ui/Palette'
+import { Roll } from './ui/Roll'
+import { ScrollRail } from './ui/ScrollRail'
+import { TopNav } from './ui/TopNav'
 
 type Theme = 'light' | 'dark'
 interface Toast {
@@ -28,7 +37,18 @@ const PAGES: { path: string; label: string; icon: IconName }[] = [
   { path: '/applications', label: 'Applications', icon: 'layers' },
   { path: '/deadlines', label: 'Deadlines', icon: 'calendar' },
   { path: '/insights', label: 'Insights', icon: 'chart' },
+  { path: '/resume', label: 'Resume Lab', icon: 'file' },
 ]
+
+const VIEW_KEY = 'nextup:view'
+
+function initialView(): 'list' | 'board' {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'board' ? 'board' : 'list'
+  } catch {
+    return 'list'
+  }
+}
 
 function initialTheme(): Theme {
   try {
@@ -56,6 +76,21 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const [view, setViewState] = useState<'list' | 'board'>(initialView)
+  const [palette, setPalette] = useState(false)
+  const [bigMenu, setBigMenu] = useState(false)
+
+  usePointerFx()
+  useScrollFx()
+
+  const setView = (v: 'list' | 'board') => {
+    setViewState(v)
+    try {
+      localStorage.setItem(VIEW_KEY, v)
+    } catch {
+      /* not critical */
+    }
+  }
 
   // ----- data -----
 
@@ -84,6 +119,8 @@ export default function App() {
     const t = setTimeout(() => setToast(null), toast.ms)
     return () => clearTimeout(t)
   }, [toast])
+
+  const notify = useCallback((text: string, tone: 'info' | 'error' = 'info') => showToast(text, { tone }), [showToast])
 
   /** Run a change, then refetch the dashboard (the spec's golden rule). */
   async function mutate(change: () => Promise<unknown>, done?: () => void) {
@@ -177,7 +214,10 @@ export default function App() {
   const onStatus = (app: Application, status: Status) =>
     mutate(
       () => api.setStatus(app.id, status),
-      () => showToast(`${app.company} → ${status}`),
+      () => {
+        showToast(status === 'Offer' ? `Offer from ${app.company}! 🎉` : `${app.company} → ${status}`)
+        if (status === 'Offer') confetti()
+      },
     )
 
   const onMemo = async (app: Application, text: string) => {
@@ -202,11 +242,15 @@ export default function App() {
         }),
     )
 
-  const onSaved = async (saved: Application, created: boolean) => {
+  const onSaved = async (saved: Application, created: boolean, note?: string) => {
     setForm(null)
     await reload()
     const extra = saved.action.needsAction ? ' — added to Needs action' : ''
-    showToast(created ? `Saved · ${saved.action.badge}${extra}` : `Updated ${saved.company} · ${saved.action.badge}`)
+    const tail = note ? ` · ${note}` : ''
+    showToast(
+      (created ? `Saved · ${saved.action.badge}${extra}` : `Updated ${saved.company} · ${saved.action.badge}`) + tail,
+      { ms: note ? 5500 : 3500 },
+    )
     jumpTo(saved.id)
   }
 
@@ -232,6 +276,60 @@ export default function App() {
 
   const actions: CardActions = { onStatus, onMemo, onEdit: (a) => setForm({ editing: a }), onDelete }
 
+  // ----- keyboard -----
+
+  const dialogOpen = !!form || palette || bigMenu
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = e.target instanceof HTMLElement && (e.target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setBigMenu(false)
+        setPalette((p) => !p)
+        return
+      }
+      if (typing || dialogOpen || e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'n') {
+        e.preventDefault()
+        openNew()
+      } else if (e.key === '/') {
+        e.preventDefault()
+        setPalette(true)
+      } else if (e.key === 'm') {
+        setBigMenu(true)
+      } else if (/^[1-9]$/.test(e.key) && PAGES[Number(e.key) - 1]) {
+        navigate(PAGES[Number(e.key) - 1].path)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  })
+
+  const paletteItems = useMemo<PaletteItem[]>(() => {
+    const items: PaletteItem[] = PAGES.map((p, i) => ({
+      id: `go-${p.path}`,
+      group: 'Go to',
+      label: p.label,
+      hint: String(i + 1),
+      icon: p.icon,
+      run: () => navigate(p.path),
+    }))
+    items.push(
+      { id: 'a-new', group: 'Actions', label: 'New application', hint: 'N', icon: 'plus', run: openNew },
+      { id: 'a-board', group: 'Actions', label: 'Open the pipeline board', icon: 'board', run: () => { setView('board'); navigate('/applications') } },
+      { id: 'a-list', group: 'Actions', label: 'Open the application list', icon: 'list', run: () => { setView('list'); navigate('/applications') } },
+      { id: 'a-needs', group: 'Actions', label: 'Show only what needs action', icon: 'bolt', run: () => { setFilter('action'); navigate('/applications') } },
+      { id: 'a-ics', group: 'Actions', label: 'Export deadlines (.ics)', icon: 'download', run: exportIcs },
+      { id: 'a-theme', group: 'Actions', label: theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode', icon: theme === 'dark' ? 'sun' : 'moon', run: toggleTheme },
+      { id: 'a-reset', group: 'Actions', label: 'Reset demo data', icon: 'reset', run: resetDemo },
+    )
+    for (const a of data?.items ?? []) {
+      items.push({ id: `app-${a.id}`, group: 'Applications', label: `${a.company} — ${a.role}`, hint: a.status, icon: 'layers', run: () => jumpTo(a.id) })
+    }
+    return items
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, theme, jumpTo, navigate])
+
   // ----- render -----
 
   const needs = data?.summary.needsAction ?? 0
@@ -251,6 +349,9 @@ export default function App() {
         jumpTo,
         exportIcs,
         resetDemo,
+        notify,
+        view,
+        setView,
       }
     : null
 
@@ -264,6 +365,8 @@ export default function App() {
         return <DeadlinesPage {...pageProps} />
       case '/insights':
         return <InsightsPage {...pageProps} />
+      case '/resume':
+        return <ResumePage {...pageProps} />
       default:
         return <HomePage {...pageProps} />
     }
@@ -307,14 +410,7 @@ export default function App() {
               <span className="dot good" title="Connected" />
             </Link>
 
-            <nav className="topnav" aria-label="Pages">
-              {PAGES.map((p) => (
-                <Link key={p.path} to={p.path}>
-                  {p.label}
-                  {count(p.path)}
-                </Link>
-              ))}
-            </nav>
+            <TopNav items={PAGES.map((p) => ({ path: p.path, label: p.label, badge: p.path === '/applications' ? needs : 0 }))} />
 
             <div className="top-actions">
               <button
@@ -326,9 +422,22 @@ export default function App() {
                 <Icon name={theme === 'dark' ? 'moon' : 'sun'} size={15} />
                 <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
               </button>
-              <button type="button" className="btn primary new-btn" onClick={openNew}>
+              <button type="button" className="kbar" onClick={() => setPalette(true)} aria-label="Open command palette" data-cursor="Search">
+                <Icon name="search" size={14} />
+                <span>Search</span>
+                <kbd className="kbd">⌘K</kbd>
+              </button>
+              <button type="button" className="btn primary new-btn" onClick={openNew} data-magnetic>
                 <Icon name="plus" size={17} />
-                <span>New application</span>
+                <span>
+                  <Roll>New application</Roll>
+                </span>
+              </button>
+              <button type="button" className="btn neon menu-btn" onClick={() => setBigMenu(true)} aria-haspopup="dialog" data-magnetic>
+                <span className="menu-btn-label">
+                  <Roll>Menu</Roll>
+                </span>
+                <Icon name="menu" size={18} />
               </button>
               <div className="menu" ref={menuRef}>
                 <button
@@ -371,14 +480,17 @@ export default function App() {
             </div>
           )}
 
-          {renderPage()}
+          <span key={`bar-${path}`} className="route-bar" aria-hidden="true" />
+          <div key={path} className="page">
+            {renderPage()}
+          </div>
         </main>
 
         <nav className="bottomnav" aria-label="Pages">
           {PAGES.map((p) => (
             <Link key={p.path} to={p.path}>
               <Icon name={p.icon} size={20} />
-              {p.label}
+              {p.label.split(' ')[0]}
               {count(p.path)}
             </Link>
           ))}
@@ -394,9 +506,38 @@ export default function App() {
             editing={form.editing}
             resumeVersions={resumeVersions}
             onClose={() => setForm(null)}
-            onSaved={(saved, created) => void onSaved(saved, created)}
+            onSaved={(saved, created, note) => void onSaved(saved, created, note)}
           />
         )}
+
+        <Palette open={palette} onClose={() => setPalette(false)} items={paletteItems} />
+        <MenuOverlay
+          open={bigMenu}
+          onClose={() => setBigMenu(false)}
+          pages={PAGES.map((p) => ({
+            path: p.path,
+            label: p.label,
+            meta:
+              p.path === '/applications'
+                ? `${data?.summary.total ?? 0} tracked · ${needs} need action`
+                : p.path === '/deadlines'
+                  ? `${data?.deadlines.length ?? 0} in 14 days`
+                  : p.path === '/resume'
+                    ? 'your versions, ranked'
+                    : p.path === '/insights'
+                      ? 'what is working'
+                      : 'today at a glance',
+          }))}
+          next={data?.deadlines[0]}
+          onOpenNext={jumpTo}
+          onNew={openNew}
+          onPalette={() => setPalette(true)}
+          onExport={exportIcs}
+          onTheme={toggleTheme}
+          dark={theme === 'dark'}
+        />
+        <Cursor />
+        <ScrollRail />
 
         <div className="toast-zone" aria-live="polite">
           {toast && (

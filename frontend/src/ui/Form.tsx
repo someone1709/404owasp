@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { api, ApiError } from '../api'
 import { Icon } from '../icons'
+import { OTHER_ROLE, ROLES, isListedRole } from '../roles'
+import { downloadResume, putResume, useResumes } from '../resumeStore'
 import { COMPANY_TYPES, SOURCES, STATUSES } from '../types'
 import type { Application, ApplicationDraft, FieldErrors } from '../types'
+import { DropZone, FileChip } from './DropZone'
 
 const LIMITS = { company: 60, role: 60, resumeVersion: 30, link: 300, notes: 500, nextActionMemo: 140 }
 
@@ -79,7 +82,7 @@ interface FormProps {
   editing: Application | null // null = create
   resumeVersions: string[]
   onClose: () => void
-  onSaved: (saved: Application, created: boolean) => void
+  onSaved: (saved: Application, created: boolean, note?: string) => void
 }
 
 export function AppForm({ editing, resumeVersions, onClose, onSaved }: FormProps) {
@@ -89,6 +92,10 @@ export function AppForm({ editing, resumeVersions, onClose, onSaved }: FormProps
   const [errors, setErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [otherRole, setOtherRole] = useState(() => !!editing && !isListedRole(editing.role))
+  const [pendingResume, setPendingResume] = useState<File | null>(null)
+  const { files: vault, error: vaultError } = useResumes()
+  const storedResume = vault.find((f) => f.version === draft.resumeVersion.trim())
 
   useEffect(() => {
     const d = dialog.current
@@ -118,7 +125,16 @@ export function AppForm({ editing, resumeVersions, onClose, onSaved }: FormProps
     setFormError('')
     try {
       const saved = editing ? await api.update(editing.id, draft) : await api.create(draft)
-      onSaved(saved, !editing)
+      let note: string | undefined
+      if (pendingResume) {
+        try {
+          await putResume(saved.resumeVersion, pendingResume)
+          note = `resume ${saved.resumeVersion} stored in this browser`
+        } catch (e) {
+          note = `but the resume wasn't stored (${e instanceof Error ? e.message : 'storage error'})`
+        }
+      }
+      onSaved(saved, !editing, note)
     } catch (err) {
       if (err instanceof ApiError && err.errors) {
         setErrors(err.errors)
@@ -164,7 +180,47 @@ export function AppForm({ editing, resumeVersions, onClose, onSaved }: FormProps
             <input {...text('company')} ref={first} placeholder="e.g. Nimbus Labs" autoComplete="off" />
           </Field>
           <Field label="Role" name="role" required error={errors.role}>
-            <input {...text('role')} placeholder="e.g. SDE Intern" autoComplete="off" />
+            <div className="select-wrap">
+              <select
+                id="f-role"
+                value={otherRole ? OTHER_ROLE : isListedRole(draft.role) ? draft.role : ''}
+                aria-invalid={!!errors.role}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v === OTHER_ROLE) {
+                    setOtherRole(true)
+                    set('role', '')
+                    setTimeout(() => document.getElementById('f-role-other')?.focus(), 0)
+                  } else {
+                    setOtherRole(false)
+                    set('role', v)
+                  }
+                }}
+              >
+                <option value="" disabled>
+                  Choose a role…
+                </option>
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+                <option value={OTHER_ROLE}>Other (type your own)…</option>
+              </select>
+              <Icon name="chevron" size={16} />
+            </div>
+            {otherRole && (
+              <input
+                id="f-role-other"
+                className="role-other"
+                value={draft.role}
+                maxLength={LIMITS.role}
+                placeholder="e.g. Robotics Intern"
+                autoComplete="off"
+                aria-label="Your role"
+                onChange={(e) => set('role', e.target.value)}
+              />
+            )}
           </Field>
 
           <Field label="Status" name="status" error={errors.status}>
@@ -197,15 +253,6 @@ export function AppForm({ editing, resumeVersions, onClose, onSaved }: FormProps
               <Icon name="chevron" size={16} />
             </div>
           </Field>
-          <Field label="Resume version" name="resumeVersion" error={errors.resumeVersion}>
-            <input {...text('resumeVersion')} list="resume-versions" autoComplete="off" />
-            <datalist id="resume-versions">
-              {resumeVersions.map((v) => (
-                <option key={v} value={v} />
-              ))}
-            </datalist>
-          </Field>
-
           <Field label="Company type" name="companyType" error={errors.companyType}>
             <div className="segmented" role="radiogroup" aria-label="Company type" id="f-companyType">
               {COMPANY_TYPES.map((t) => (
@@ -222,9 +269,54 @@ export function AppForm({ editing, resumeVersions, onClose, onSaved }: FormProps
               ))}
             </div>
           </Field>
+
           <Field label="Job link" name="link" error={errors.link}>
             <input {...text('link')} type="url" placeholder="https://" autoComplete="off" />
           </Field>
+          <Field label="Resume version" name="resumeVersion" error={errors.resumeVersion} hint="A label for the resume you send, e.g. v2-backend">
+            <input {...text('resumeVersion')} list="resume-versions" autoComplete="off" />
+            <datalist id="resume-versions">
+              {resumeVersions.map((v) => (
+                <option key={v} value={v} />
+              ))}
+            </datalist>
+          </Field>
+
+          <div className="field wide resume-field">
+            <div className="field-label">
+              <span className="field-title">
+                Resume file <span className="optional">optional</span>
+              </span>
+              <span className="counter">
+                <Icon name="lock" size={12} /> stays in this browser · never uploaded
+              </span>
+            </div>
+            {pendingResume ? (
+              <FileChip
+                name={pendingResume.name}
+                size={pendingResume.size}
+                tag={`will be saved as ${draft.resumeVersion.trim() || 'v1-general'}`}
+                onRemove={() => setPendingResume(null)}
+              />
+            ) : (
+              <>
+                {storedResume && (
+                  <FileChip
+                    name={storedResume.name}
+                    size={storedResume.size}
+                    tag={`already on file for ${storedResume.version}`}
+                    onDownload={() => downloadResume(storedResume)}
+                  />
+                )}
+                <DropZone
+                  compact
+                  title={storedResume ? 'Drop a different file to replace it' : 'Drop your resume here'}
+                  onFile={setPendingResume}
+                />
+              </>
+            )}
+            {vaultError && <p className="field-hint">{vaultError}. The application itself will still save.</p>}
+          </div>
 
           <Field label="Next action" name="nextActionMemo" wide error={errors.nextActionMemo}>
             <input {...text('nextActionMemo')} placeholder="e.g. Email HR for a new test link" autoComplete="off" />

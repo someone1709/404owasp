@@ -1,8 +1,11 @@
 import { Icon } from '../icons'
 import { Link, useRoute } from '../router'
 import { CardList } from '../ui/CardList'
+import { NextUp } from '../ui/NextUp'
 import { Hero, SummaryTiles } from '../ui/Overview'
+import { PinScene } from '../ui/PinScene'
 import { Deadlines } from '../ui/Side'
+import { Ticker } from '../ui/Ticker'
 import type { PageProps } from './types'
 
 const PREVIEW = 3
@@ -16,6 +19,7 @@ export function HomePage({ data, setFilter, flashId, actions, jumpTo, exportIcs 
   return (
     <>
       <Hero data={data} />
+      <Ticker data={data} />
       <SummaryTiles
         data={data}
         filter="all"
@@ -27,6 +31,7 @@ export function HomePage({ data, setFilter, flashId, actions, jumpTo, exportIcs 
 
       <div className="columns">
         <section aria-label="Needs your attention">
+          {urgent[0] && <NextUp app={urgent[0]} onOpen={jumpTo} />}
           <div className="section-head">
             <h2>Needs your attention</h2>
             <Link
@@ -50,7 +55,7 @@ export function HomePage({ data, setFilter, flashId, actions, jumpTo, exportIcs 
               <p className="muted">Nothing is overdue, due within 3 days, or waiting on a follow-up.</p>
             </div>
           ) : (
-            <CardList items={shown} today={data.today} flashId={flashId} actions={actions} />
+            <CardList items={shown.slice(urgent[0] ? 1 : 0)} today={data.today} flashId={flashId} actions={actions} />
           )}
         </section>
 
@@ -58,6 +63,8 @@ export function HomePage({ data, setFilter, flashId, actions, jumpTo, exportIcs 
           <Deadlines data={data} onJump={jumpTo} onExport={exportIcs} />
         </aside>
       </div>
+
+      <PinScene data={data} />
     </>
   )
 }

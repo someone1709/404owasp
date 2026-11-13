@@ -28,6 +28,17 @@ const PATHS = {
   wipe: 'M3 6h18M19 6l-1 14H6L5 6M9 6V4h6v2M9.5 10.5l5 5M14.5 10.5l-5 5',
   chevron: 'M6 9l6 6 6-6',
   home: 'M3 10.5L12 3l9 7.5V21H3zM9 21v-6h6v6',
+  file: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5',
+  menu: 'M4 8h16M4 16h10',
+  board: 'M3 4h5v16H3zM10 4h5v10h-5zM17 4h4v13h-4z',
+  list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  upload: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12',
+  sparkle: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z',
+  command: 'M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z',
+  left: 'M15 6l-6 6 6 6',
+  right: 'M9 6l6 6-6 6',
+  bolt: 'M13 2L4 14h7l-1 8 9-12h-7z',
+  up: 'M12 19V5M5 12l7-7 7 7',
 }
 
 export type IconName = keyof typeof PATHS

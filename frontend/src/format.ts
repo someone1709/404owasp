@@ -56,3 +56,15 @@ export const STATUS_HINT: Record<Status, string> = {
 }
 
 export const isHttpLink = (link?: string): link is string => !!link && /^https?:\/\//i.test(link)
+
+/** 'YYYY-MM-DD' for a local Date. */
+export const isoDate = toISO
+
+export function addDays(iso: string, n: number): string {
+  const d = parseDate(iso)
+  d.setDate(d.getDate() + n)
+  return toISO(d)
+}
+
+export const weekdayShort = (iso: string) => parseDate(iso).toLocaleDateString('en-GB', { weekday: 'short' })
+export const dayOfMonth = (iso: string) => parseDate(iso).getDate()

@@ -1,6 +1,7 @@
 import { Icon } from '../icons'
 import { Deadlines } from '../ui/Side'
 import { PageHead } from '../ui/PageHead'
+import { Timeline } from '../ui/Timeline'
 import type { PageProps } from './types'
 
 export function DeadlinesPage({ data, jumpTo, exportIcs }: PageProps) {
@@ -32,6 +33,7 @@ export function DeadlinesPage({ data, jumpTo, exportIcs }: PageProps) {
           <strong>{data.deadlines.length}</strong>
         </div>
       </div>
+      <Timeline data={data} onJump={jumpTo} />
       <Deadlines data={data} onJump={jumpTo} onExport={exportIcs} />
     </div>
   )

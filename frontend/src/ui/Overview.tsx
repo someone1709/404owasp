@@ -1,5 +1,6 @@
 import { longDate, pad2, plural, STATUS_HINT } from '../format'
 import { Icon } from '../icons'
+import { Split } from './Split'
 import { STATUSES } from '../types'
 import type { Dashboard, Status } from '../types'
 
@@ -77,9 +78,7 @@ export function Hero({ data }: { data: Dashboard }) {
         </div>
         <div className="hero-title">
           <h1>
-            Your
-            <br />
-            next move
+            <Split lines={['Your', 'next move']} />
           </h1>
           <span className="mono-chip">NextUp</span>
         </div>
