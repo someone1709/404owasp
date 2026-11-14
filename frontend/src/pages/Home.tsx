@@ -31,7 +31,7 @@ export function HomePage({ data, setFilter, flashId, actions, jumpTo, exportIcs 
 
       <div className="columns">
         <section aria-label="Needs your attention">
-          {urgent[0] && <NextUp app={urgent[0]} onOpen={jumpTo} />}
+          {urgent[0] && <NextUp app={urgent[0]} today={data.today} onOpen={jumpTo} />}
           <div className="section-head">
             <h2>Needs your attention</h2>
             <Link

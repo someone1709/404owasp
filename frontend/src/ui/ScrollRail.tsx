@@ -3,7 +3,7 @@ import { Icon } from '../icons'
 /** A thin neon progress line on the right edge and a back-to-top ring that fills as you scroll. */
 export function ScrollRail() {
   return (
-    <div className="scroll-rail" data-progress aria-hidden="false">
+    <div className="scroll-rail" data-progress>
       <span className="rail-line" aria-hidden="true">
         <span />
       </span>

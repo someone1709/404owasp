@@ -17,7 +17,7 @@ That is the same as running these two separately:
 ```bash
 npm run build   # installs both halves and builds the frontend
 npm start       # one Express server on :4100 serves the built UI and the /api routes
-npm test        # 32 backend tests: judge path and twist included
+npm test        # 43 backend tests: judge path, twist, persistence and the Vercel bundle
 ```
 
 While developing with hot reload, run two terminals: `cd backend && npm run dev` and
@@ -53,10 +53,33 @@ The UI follows the Stitch "editorial job tracker" design (coral light theme, ele
 theme, with a toggle). Fonts are bundled from npm (`@fontsource-variable/*`), so the page loads
 nothing from a CDN and works under the strict CSP.
 
+### Deploy on Vercel
+
+The repo is Vercel-ready: [`vercel.json`](vercel.json) builds the frontend (served from Vercel's CDN)
+and routes `/api/*` to one serverless function, [`api/index.js`](api/index.js), which is the Express
+backend pre-bundled into a single file.
+
+1. In Vercel choose **Add New → Project** and import this repository. Leave the framework as
+   **Other** and the root directory as it is; build and install commands come from `vercel.json`.
+2. **Add a database so data survives** (strongly recommended): open the project's **Storage** tab, add
+   **Upstash Redis** from the Marketplace and connect it to the project. That sets `KV_REST_API_URL`
+   and `KV_REST_API_TOKEN` for you. Then redeploy.
+3. Open the deployment URL. It works like the local app, with one URL for the page and the API.
+
+Why step 2 matters: Vercel runs the backend as short-lived functions, and different requests can be
+answered by different copies, so in-memory data would appear to come and go. With Redis configured
+each workspace is loaded before a request and saved right before the response, so every copy agrees
+(the last write wins if two copies write at the same instant). If Redis is unreachable the app keeps
+working from memory instead of failing. Without Redis it still deploys, but expect data to reset.
+
+Changing backend code? Run `npm run bundle` and commit the updated `api/index.js`
+(`npm run build` does this too). A test fails if the committed file is out of date.
+
 ### Deploy (Render free web service)
 - Build command: `npm run build`
 - Start command: `npm start`
-- `PORT` is set by Render, so there's nothing else to configure.
+- `PORT` is set by Render, so there's nothing else to configure. Data stays in memory (one long-running
+  process), so no database is needed there.
 - The free tier sleeps when idle, so open the link a minute before judging.
 
 ## Judge verification path
@@ -117,6 +140,9 @@ backend/   Express 5 + TypeScript (runs directly on Node, no build step)
   src/seed.ts        fictional demo data, dates relative to today
   src/security.ts    security headers, rate limit, workspace id
   src/ics.ts         calendar export
+  src/persistence.ts optional Redis saving for serverless hosts (off unless configured)
+  src/vercel.ts      serverless entry point (bundled into api/index.js by bundle.mjs)
+api/index.js    generated Vercel function (the backend, bundled); vercel.json = Vercel config
 frontend/  Vite + React + TypeScript (see FRONTEND_SPEC.md)
   src/App.tsx        app shell: navigation, shared state, data loading, toasts, actions
   src/router.tsx     tiny History-API router (real URLs, Back/Forward, no dependency)
@@ -144,7 +170,8 @@ frontend/  Vite + React + TypeScript (see FRONTEND_SPEC.md)
 
 ## Known limits
 
-- Data lives in server memory, so it resets when the server restarts or sleeps. This is fine for a
-  prototype; a real version would add a database.
+- Locally and on Render, data lives in server memory, so it resets when the server restarts or sleeps.
+  On Vercel it is kept in Redis (see above); workspaces expire after 14 days without a change.
+- The rate limiter counts requests per server copy, so on Vercel it is a soft limit.
 - The workspace id keeps visitors apart but isn't a login. Anyone who has the id can read that
   workspace.

@@ -5,6 +5,7 @@ import type { NextFunction, Request, Response } from 'express'
 import { isValidISODate, serverToday } from './dates.ts'
 import { toICS } from './ics.ts'
 import { buildDashboard, present } from './rules.ts'
+import type { Persistence } from './persistence.ts'
 import { rateLimit, securityHeaders, workspaceFrom } from './security.ts'
 import { createStore } from './store.ts'
 import type { StoreOptions } from './store.ts'
@@ -12,7 +13,9 @@ import { isStatus, validateDraft, validateMemo } from './validation.ts'
 
 export interface AppOptions extends StoreOptions {
   frontendDir?: string // built frontend to serve; skipped if it doesn't exist
+  serveFrontend?: boolean // false when a CDN serves the frontend (Vercel)
   rateLimitPerMinute?: number
+  persistence?: Persistence | null // save and reload workspaces around each request (serverless hosts)
 }
 
 /** Who is asking and what day it is for them. Sends a 400 and returns null if invalid. */
@@ -27,8 +30,10 @@ function context(req: Request, res: Response): { ws: string; today: string } | n
 }
 
 export function createApp({
-  frontendDir = join(import.meta.dirname, '../../frontend/dist'),
+  frontendDir,
+  serveFrontend = true,
   rateLimitPerMinute = 600,
+  persistence = null,
   ...storeOptions
 }: AppOptions = {}) {
   const store = createStore(storeOptions)
@@ -39,6 +44,34 @@ export function createApp({
   app.use(securityHeaders)
   app.use('/api', rateLimit({ windowMs: 60_000, max: rateLimitPerMinute }))
   app.use(express.json({ limit: '20kb' }))
+
+  // Serverless hosts may answer each request from a different process, so a workspace is loaded
+  // from the database before the request and saved right before the response goes out.
+  if (persistence) {
+    app.use('/api', async (req, res, next) => {
+      const ws = workspaceFrom(req)
+      if (!ws || req.path === '/health') return next() // bad ids get their 400 from the route
+      let saved: Awaited<ReturnType<Persistence['load']>> = null
+      try {
+        saved = await persistence.load(ws)
+        if (saved) store.adopt(ws, saved)
+      } catch (err) {
+        console.error('Could not load workspace; continuing from memory:', err) // degrade, don't fail
+      }
+      // Save after any change, and after the first visit so demo-data ids stay the same everywhere.
+      if (req.method !== 'GET' || saved === null) {
+        const end = res.end.bind(res) as (...args: unknown[]) => unknown
+        res.end = ((...args: unknown[]) => {
+          const records = store.snapshot(ws)
+          const done = () => end(...args)
+          if (!records || res.statusCode >= 500) done()
+          else persistence.save(ws, records).catch((err) => console.error('Could not save workspace:', err)).finally(done)
+          return res
+        }) as typeof res.end
+      }
+      next()
+    })
+  }
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true })
@@ -163,12 +196,15 @@ export function createApp({
   })
 
   // One URL for everything: serve the built frontend when it exists.
-  if (existsSync(join(frontendDir, 'index.html'))) {
-    app.use(express.static(frontendDir))
-    app.use((req, res, next) => {
-      if (req.method !== 'GET') return next()
-      res.sendFile(join(frontendDir, 'index.html'))
-    })
+  if (serveFrontend) {
+    const dir = frontendDir ?? join(import.meta.dirname, '../../frontend/dist')
+    if (existsSync(join(dir, 'index.html'))) {
+      app.use(express.static(dir))
+      app.use((req, res, next) => {
+        if (req.method !== 'GET') return next()
+        res.sendFile(join(dir, 'index.html'))
+      })
+    }
   }
 
   // Never leak stack traces to the client.

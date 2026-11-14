@@ -54,7 +54,8 @@ async function send(method: string, path: string, body?: unknown): Promise<Respo
   })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
-    throw new ApiError(res.status, data.error ?? 'Validation failed', data.errors)
+    const fallback = res.status === 400 ? 'Validation failed' : res.status === 429 ? 'Too many requests. Slow down a little.' : `The server had a problem (${res.status}). Try again.`
+    throw new ApiError(res.status, data.error ?? fallback, data.errors)
   }
   return res
 }

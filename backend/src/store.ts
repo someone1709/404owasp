@@ -1,6 +1,8 @@
-// In-memory store, no database (Rule 01). Each browser gets its own workspace,
+// In-memory store (Rule 01). Each browser gets its own workspace,
 // keyed by a random id it keeps in localStorage, so judges testing the same
-// deployment never see or overwrite each other's data.
+// deployment never see or overwrite each other's data. On serverless hosts a
+// persistence adapter (see persistence.ts) saves and reloads each workspace around
+// every request, so this same code works when no single server stays alive.
 
 import { randomUUID } from 'node:crypto'
 import { seedApplications } from './seed.ts'
@@ -16,17 +18,17 @@ export type Store = ReturnType<typeof createStore>
 export function createStore({ maxWorkspaces = 500, maxItems = 200 }: StoreOptions = {}) {
   const workspaces = new Map<string, ApplicationRecord[]>()
 
-  /** A workspace's records, seeded with demo data on first visit. */
-  function records(ws: string, today: string): ApplicationRecord[] {
-    let list = workspaces.get(ws)
-    if (list) {
-      workspaces.delete(ws) // re-insert to mark as recently used
-    } else {
-      if (workspaces.size >= maxWorkspaces) workspaces.delete(workspaces.keys().next().value!)
-      list = seedApplications(today)
-    }
+  /** Put a workspace's list in the map as most recently used, evicting the oldest if full. */
+  function place(ws: string, list: ApplicationRecord[]): ApplicationRecord[] {
+    workspaces.delete(ws) // re-insert to mark as recently used
+    if (workspaces.size >= maxWorkspaces) workspaces.delete(workspaces.keys().next().value!)
     workspaces.set(ws, list)
     return list
+  }
+
+  /** A workspace's records, seeded with demo data on first visit. */
+  function records(ws: string, today: string): ApplicationRecord[] {
+    return place(ws, workspaces.get(ws) ?? seedApplications(today))
   }
 
   function find(ws: string, today: string, id: string): ApplicationRecord | undefined {
@@ -97,11 +99,21 @@ export function createStore({ maxWorkspaces = 500, maxItems = 200 }: StoreOption
     },
 
     reset(ws: string, today: string) {
-      workspaces.set(ws, seedApplications(today))
+      place(ws, seedApplications(today)) // goes through place() so the workspace cap still applies
     },
 
     wipe(ws: string) {
-      workspaces.set(ws, [])
+      place(ws, [])
+    },
+
+    /** The workspace's records exactly as stored (for saving to a database), if it exists. */
+    snapshot(ws: string): ApplicationRecord[] | undefined {
+      return workspaces.get(ws)
+    },
+
+    /** Replace a workspace with records loaded from a database. */
+    adopt(ws: string, list: ApplicationRecord[]) {
+      place(ws, list.slice(0, maxItems))
     },
   }
 }
