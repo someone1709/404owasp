@@ -6,8 +6,7 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install && npm --prefix backend run bundle",
-    "bundle": "npm --prefix backend run bundle",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install",
     "start": "node backend/src/server.ts",
     "serve": "npm run build && npm start",
     "test": "npm --prefix backend test"

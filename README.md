@@ -17,7 +17,7 @@ That is the same as running these two separately:
 ```bash
 npm run build   # installs both halves and builds the frontend
 npm start       # one Express server on :4100 serves the built UI and the /api routes
-npm test        # 43 backend tests: judge path, twist, persistence and the Vercel bundle
+npm test        # 42 backend tests: judge path, twist and persistence
 ```
 
 While developing with hot reload, run two terminals: `cd backend && npm run dev` and
@@ -55,25 +55,35 @@ nothing from a CDN and works under the strict CSP.
 
 ### Deploy on Vercel
 
-The repo is Vercel-ready: [`vercel.json`](vercel.json) builds the frontend (served from Vercel's CDN)
-and routes `/api/*` to one serverless function, [`api/index.js`](api/index.js), which is the Express
-backend pre-bundled into a single file.
+The repo uses Vercel's **services** layout ([`vercel.json`](vercel.json)): the Vite frontend
+(`frontend/`) and the Express backend (`backend/`, entry `src/vercel.ts`) deploy together as one
+project, with `/api/*` routed to the backend and everything else to the frontend.
 
-1. In Vercel choose **Add New → Project** and import this repository. Leave the framework as
-   **Other** and the root directory as it is; build and install commands come from `vercel.json`.
-2. **Add a database so data survives** (strongly recommended): open the project's **Storage** tab, add
-   **Upstash Redis** from the Marketplace and connect it to the project. That sets `KV_REST_API_URL`
-   and `KV_REST_API_TOKEN` for you. Then redeploy.
-3. Open the deployment URL. It works like the local app, with one URL for the page and the API.
+With the Vercel CLI, from the project folder:
 
-Why step 2 matters: Vercel runs the backend as short-lived functions, and different requests can be
-answered by different copies, so in-memory data would appear to come and go. With Redis configured
+```bash
+vercel deploy --yes     # a preview deployment
+vercel deploy --prod    # production
+```
+
+Or import the repository in the Vercel dashboard (**Add New → Project**); services are detected on
+their own and the settings come from `vercel.json`.
+
+**Add a database so data survives** (strongly recommended): open the project's **Storage** tab, add
+**Upstash Redis** from the Marketplace and connect it to the project. That sets `KV_REST_API_URL` and
+`KV_REST_API_TOKEN`. Then redeploy.
+
+Why it matters: Vercel runs the backend as short-lived functions, and different requests can be
+answered by different copies, so in-memory data can appear to come and go. With Redis configured
 each workspace is loaded before a request and saved right before the response, so every copy agrees
 (the last write wins if two copies write at the same instant). If Redis is unreachable the app keeps
 working from memory instead of failing. Without Redis it still deploys, but expect data to reset.
 
-Changing backend code? Run `npm run bundle` and commit the updated `api/index.js`
-(`npm run build` does this too). A test fails if the committed file is out of date.
+New projects have **Deployment Protection** on, which asks visitors to sign in to Vercel. Turn it off
+(Project → Settings → Deployment Protection) for a link anyone can open.
+
+The backend's TypeScript is pinned to 5.9 (`backend/package.json`) because Vercel's builder type-checks
+with the TypeScript API, which TypeScript 7 changed.
 
 ### Deploy (Render free web service)
 - Build command: `npm run build`
@@ -141,8 +151,8 @@ backend/   Express 5 + TypeScript (runs directly on Node, no build step)
   src/security.ts    security headers, rate limit, workspace id
   src/ics.ts         calendar export
   src/persistence.ts optional Redis saving for serverless hosts (off unless configured)
-  src/vercel.ts      serverless entry point (bundled into api/index.js by bundle.mjs)
-api/index.js    generated Vercel function (the backend, bundled); vercel.json = Vercel config
+  src/vercel.ts      serverless entry point for Vercel
+vercel.json       Vercel config (frontend + backend services)
 frontend/  Vite + React + TypeScript (see FRONTEND_SPEC.md)
   src/App.tsx        app shell: navigation, shared state, data loading, toasts, actions
   src/router.tsx     tiny History-API router (real URLs, Back/Forward, no dependency)

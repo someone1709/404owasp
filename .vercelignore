@@ -1,6 +1,4 @@
-# Not needed to run the deployed app (the API is pre-bundled in api/index.js)
+# Not needed to run the deployed app
 frontend/stitch_editorial_job_application_tracker
 backend/test
-backend/src
-backend/bundle.mjs
 FRONTEND_SPEC.md
