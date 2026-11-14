@@ -1,13 +1,13 @@
 {
   "name": "nextup-internship-tracker",
   "private": true,
-  "description": "PS-18 Internship Tracker: Express API + React frontend, served from one URL.",
+  "description": "PS-18 Internship Tracker: Express API + React frontend (JavaScript), served from one URL.",
   "engines": {
     "node": ">=22.18"
   },
   "scripts": {
     "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install",
-    "start": "node backend/src/server.ts",
+    "start": "node backend/src/server.js",
     "serve": "npm run build && npm start",
     "test": "npm --prefix backend test"
   }

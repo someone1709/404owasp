@@ -10,14 +10,14 @@ dashboard after every change. The diagrams below render on GitHub.
 flowchart LR
   subgraph Browser
     SPA["React SPA<br/>App shell, router, pages, UI"]
-    API["api.ts<br/>fetch client"]
+    API["api.js<br/>fetch client"]
     LS[("localStorage<br/>workspace id, theme, view")]
     IDB[("IndexedDB<br/>resume files")]
   end
   subgraph Server["Express 5 API (Node)"]
     PIPE["Middleware pipeline"]
     ROUTES["Route handlers"]
-    RULES["Rules engine<br/>rules.ts, insights.ts"]
+    RULES["Rules engine<br/>rules.js, insights.js"]
     STORE[("In-memory store<br/>Map of workspaces")]
   end
   REDIS[("Upstash Redis<br/>optional")]
@@ -34,14 +34,14 @@ flowchart LR
 
 Resume files never reach the server: they are stored in IndexedDB only.
 
-## 2. Frontend (Vite, React 19, TypeScript)
+## 2. Frontend (Vite, React 19, JavaScript)
 
 ```mermaid
 flowchart TD
-  MAIN["main.tsx<br/>fonts, styles.css, fx.css"] --> APP
+  MAIN["main.jsx<br/>fonts, styles.css, fx.css"] --> APP
 
-  subgraph APP["App.tsx: shell"]
-    ROUTER["router.tsx<br/>History API, Link"]
+  subgraph APP["App.jsx: shell"]
+    ROUTER["router.jsx<br/>History API, Link"]
     STATE["State: data, filter, query,<br/>view, theme, toast, form"]
     ACTIONS["Actions: create, status, memo,<br/>delete + undo, reset, export"]
     KEYS["Keyboard shortcuts<br/>N, /, M, 1-5, Ctrl+K"]
@@ -67,10 +67,10 @@ flowchart TD
 
   PAGES --> UI["ui/: Card, Board, Timeline, PinScene,<br/>Ticker, NextUp, SummaryTiles ..."]
 
-  ACTIONS --> APICLIENT["api.ts<br/>X-Workspace-Id, ?today=, ApiError"]
-  RES --> RSTORE["resumeStore.ts<br/>IndexedDB vault"]
+  ACTIONS --> APICLIENT["api.js<br/>X-Workspace-Id, ?today=, ApiError"]
+  RES --> RSTORE["resumeStore.js<br/>IndexedDB vault"]
   FORM --> RSTORE
-  APP --> FX["fx.ts: pointer effects,<br/>scroll engine, confetti"]
+  APP --> FX["fx.js: pointer effects,<br/>scroll engine, confetti"]
   APICLIENT --> BACKEND(("Express /api"))
 ```
 
@@ -80,13 +80,13 @@ and the whole `Dashboard` object replaces state. Pages are pure views of that ob
 
 | Concern | Where |
 |---|---|
-| Routing | `router.tsx`: `useRouter`, `Link`, `RouterContext`. Real URLs, Back/Forward, deep links |
-| API contract | `types.ts` (mirrors `backend/src/types.ts`), `api.ts` |
-| Resume vault | `resumeStore.ts`: IndexedDB, type, size and file-signature checks, download only |
-| Scroll and hover effects | `fx.ts` (+ `fx.css`): reveals, depth tilt, pinned 3D scene, magnetic buttons, cursor ring |
+| Routing | `router.jsx`: `useRouter`, `Link`, `RouterContext`. Real URLs, Back/Forward, deep links |
+| API contract | `types.js` (constants + JSDoc typedefs, mirrors `backend/src/types.js`), `api.js` |
+| Resume vault | `resumeStore.js`: IndexedDB, type, size and file-signature checks, download only |
+| Scroll and hover effects | `fx.js` (+ `fx.css`): reveals, depth tilt, pinned 3D scene, magnetic buttons, cursor ring |
 | Theme | `data-theme` on `<html>`; saved only after an explicit toggle |
 
-## 3. Backend (Express 5, TypeScript, no build step locally)
+## 3. Backend (Express 5, JavaScript ES modules, no build step)
 
 ```mermaid
 flowchart TD
@@ -99,11 +99,11 @@ flowchart TD
   LOAD --> CTX["context()<br/>workspaceFrom(header), today from ?today="]
   CTX -- "invalid id" --> E400["400"]
   CTX --> ROUTE["Route handler"]
-  ROUTE --> V["validation.ts<br/>allow-list, limits, http(s) links"]
+  ROUTE --> V["validation.js<br/>allow-list, limits, http(s) links"]
   V -- "errors" --> E400V["400 { errors }"]
-  V --> STORE["store.ts<br/>create, update, setStatus,<br/>setMemo, remove, restore, reset, wipe"]
-  STORE --> R["rules.ts<br/>computeAction, buildDashboard"]
-  R --> INS["insights.ts<br/>funnel + messages"]
+  V --> STORE["store.js<br/>create, update, setStatus,<br/>setMemo, remove, restore, reset, wipe"]
+  STORE --> R["rules.js<br/>computeAction, buildDashboard"]
+  R --> INS["insights.js<br/>funnel + messages"]
   R --> OUT["JSON response"]
   INS --> OUT
   OUT --> SAVE{"changed, or<br/>first visit?"}
@@ -131,7 +131,7 @@ flowchart TD
 Every request carries `X-Workspace-Id` (random id kept in the browser) and `?today=YYYY-MM-DD`
 (the browser's local date), so the server never guesses the day.
 
-### The "needs action" rules (`rules.ts`)
+### The "needs action" rules (`rules.js`)
 
 | Condition (not Rejected) | Severity | Needs action |
 |---|---|---|
@@ -148,11 +148,11 @@ Sorting is by urgency, then deadline, then company. All of it is computed per re
 ```mermaid
 sequenceDiagram
   actor U as User
-  participant F as Form.tsx
-  participant A as api.ts
+  participant F as Form.jsx
+  participant A as api.js
   participant S as Express API
   participant D as Store + rules
-  participant G as App.tsx
+  participant G as App.jsx
 
   U->>F: Fill in and press Save
   F->>A: create(draft)
@@ -225,7 +225,7 @@ flowchart LR
 
   subgraph Vercel["Vercel project: two services"]
     CDN["frontend service<br/>Vite build on the CDN"]
-    FN["backend service<br/>Express function (src/vercel.ts)"]
+    FN["backend service<br/>Express function (src/vercel.js)"]
     RED[("Upstash Redis<br/>KV_REST_API_URL / TOKEN")]
     CDN -- "/api/*" --> FN
     FN -.-> RED

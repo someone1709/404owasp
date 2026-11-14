@@ -7,7 +7,7 @@
     },
     "backend": {
       "root": "backend",
-      "entrypoint": "src/vercel.ts"
+      "entrypoint": "src/vercel.js"
     }
   },
   "rewrites": [

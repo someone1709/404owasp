@@ -1,0 +1,3 @@
+# Keep GitHub's language bar honest: the app is JavaScript.
+frontend/stitch_editorial_job_application_tracker/** linguist-vendored
+**/package-lock.json linguist-generated

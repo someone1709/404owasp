@@ -56,7 +56,7 @@ nothing from a CDN and works under the strict CSP.
 ### Deploy on Vercel
 
 The repo uses Vercel's **services** layout ([`vercel.json`](vercel.json)): the Vite frontend
-(`frontend/`) and the Express backend (`backend/`, entry `src/vercel.ts`) deploy together as one
+(`frontend/`) and the Express backend (`backend/`, entry `src/vercel.js`) deploy together as one
 project, with `/api/*` routed to the backend and everything else to the frontend.
 
 With the Vercel CLI, from the project folder:
@@ -82,9 +82,6 @@ working from memory instead of failing. Without Redis it still deploys, but expe
 New projects have **Deployment Protection** on, which asks visitors to sign in to Vercel. Turn it off
 (Project → Settings → Deployment Protection) for a link anyone can open.
 
-The backend's TypeScript is pinned to 5.9 (`backend/package.json`) because Vercel's builder type-checks
-with the TypeScript API, which TypeScript 7 changed.
-
 ### Deploy (Render free web service)
 - Build command: `npm run build`
 - Start command: `npm start`
@@ -99,7 +96,7 @@ with the TypeScript API, which TypeScript 7 changed.
 2. **Needs action** filter: it's listed there with its reason.
 3. **Change status**: the pipeline summary counts update straight away.
 
-`backend/test/api.test.ts` runs these exact three steps against the real API.
+`backend/test/api.test.js` runs these exact three steps against the real API.
 
 ## Minute-40 twist
 
@@ -117,7 +114,7 @@ The tests check the edges: day 3 is flagged, day 4 is not.
 
 ## How "needs action" works
 
-All rules live in [`backend/src/rules.ts`](backend/src/rules.ts):
+All rules live in [`backend/src/rules.js`](backend/src/rules.js):
 
 | Rule | Badge | Needs action |
 |---|---|---|
@@ -130,7 +127,7 @@ All rules live in [`backend/src/rules.ts`](backend/src/rules.ts):
 The list is sorted by urgency. Each status has its own next step (Test → "Finish the online test",
 Offer → "Reply to the offer"), so the card always tells you what to do.
 
-**Insights** ([`backend/src/insights.ts`](backend/src/insights.ts)) use each application's status history.
+**Insights** ([`backend/src/insights.js`](backend/src/insights.js)) use each application's status history.
 - **Funnel:** how many applications reached Test, then Interview, then Offer.
 - **Rejections:** which stage they happen at, e.g. "3 of 5 came after the online test, all at Product companies".
 - **Interview rates:** which source and which resume version get the most interviews.
@@ -142,28 +139,28 @@ A group needs at least 3 applications before the app draws any conclusion from i
 ## Project layout
 
 ```
-backend/   Express 5 + TypeScript (runs directly on Node, no build step)
-  src/rules.ts       needs-action engine, sorting, summary, upcoming deadlines
-  src/insights.ts    funnel and drop-off insights
-  src/validation.ts  server-side validation and field allow-list
-  src/store.ts       in-memory, one workspace per browser
-  src/seed.ts        fictional demo data, dates relative to today
-  src/security.ts    security headers, rate limit, workspace id
-  src/ics.ts         calendar export
-  src/persistence.ts optional Redis saving for serverless hosts (off unless configured)
-  src/vercel.ts      serverless entry point for Vercel
+backend/   Express 5, JavaScript ES modules (runs directly on Node, no build step)
+  src/rules.js       needs-action engine, sorting, summary, upcoming deadlines
+  src/insights.js    funnel and drop-off insights
+  src/validation.js  server-side validation and field allow-list
+  src/store.js       in-memory, one workspace per browser
+  src/seed.js        fictional demo data, dates relative to today
+  src/security.js    security headers, rate limit, workspace id
+  src/ics.js         calendar export
+  src/persistence.js optional Redis saving for serverless hosts (off unless configured)
+  src/vercel.js      serverless entry point for Vercel
 vercel.json       Vercel config (frontend + backend services)
-frontend/  Vite + React + TypeScript (see FRONTEND_SPEC.md)
-  src/App.tsx        app shell: navigation, shared state, data loading, toasts, actions
-  src/router.tsx     tiny History-API router (real URLs, Back/Forward, no dependency)
+frontend/  Vite + React, JavaScript (JSX) (see FRONTEND_SPEC.md)
+  src/App.jsx        app shell: navigation, shared state, data loading, toasts, actions
+  src/router.jsx     tiny History-API router (real URLs, Back/Forward, no dependency)
   src/pages/         Overview (/), Applications, Deadlines, Insights, Resume Lab
-  src/resumeStore.ts local resume vault (IndexedDB, never uploaded)
-  src/fx.ts          pointer effects, scroll engine (reveals, depth, pinning), confetti
+  src/resumeStore.js local resume vault (IndexedDB, never uploaded)
+  src/fx.js          pointer effects, scroll engine (reveals, depth, pinning), confetti
   src/fx.css         menu, palette, board, timeline, resume and hover styles
   src/ui/            hero + funnel, summary tiles, cards, form, side panels
   src/styles.css     design tokens (light + dark) and layout
-  src/api.ts         typed API client
-  src/types.ts       API contract
+  src/api.js         API client
+  src/types.js       API contract (constants + JSDoc typedefs)
 ```
 
 ## Security notes

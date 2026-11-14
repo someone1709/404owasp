@@ -6,17 +6,17 @@
 
 ## Stack
 
-- Vite + React + TypeScript, plain CSS or Tailwind.
+- Vite + React (JavaScript, JSX), plain CSS or Tailwind.
 - No env files, no API keys, no external fonts/CDNs, no login.
 - **Already done in `frontend/`:**
-  - `src/types.ts`: the contract below.
-  - `src/api.ts`: a typed client for every endpoint.
+  - `src/types.js`: the contract below, as constants and JSDoc typedefs.
+  - `src/api.js`: a typed client for every endpoint.
   - The dev proxy.
-  - A placeholder `App.tsx` that proves the backend connection works. Replace it with the real UI.
+  - A placeholder `App.jsx` that proves the backend connection works. Replace it with the real UI.
 - Run it:
   - Terminal 1: `cd backend && npm run dev` (port 4100)
   - Terminal 2: `cd frontend && npm run dev`
-- All requests go to a relative path (`/api/...`). Dev proxy in `vite.config.ts` (no CORS, no env):
+- All requests go to a relative path (`/api/...`). Dev proxy in `vite.config.js` (no CORS, no env):
   ```ts
   server: { proxy: { '/api': 'http://localhost:4100' } }
   ```
@@ -40,7 +40,7 @@ The backend already supports all of this. These are the UI pieces the judges wil
 | **Three-day warning:** flag deadlines within 3 days automatically | Cards with `action.severity === 'soon'` get an amber left border, a light amber background and the badge, with no click needed. `overdue` gets the same treatment in red. |
 | **Filter showing only applications requiring action** | The **Needs action (n)** tab shows `items.filter(i => i.action.needsAction)`. Put it first after All, visually loud, with the count from `summary.needsAction`. |
 | **Urgency highlighting within 72 hours** | Same as the first row. Also show the reason line ("Online test due in 2 days") on the card. |
-| **Status lifecycle:** Applied, Test, Interview, Offer, Rejected | Use exactly these 5 values in the status select and summary tiles (`STATUSES` in `types.ts`). |
+| **Status lifecycle:** Applied, Test, Interview, Offer, Rejected | Use exactly these 5 values in the status select and summary tiles (`STATUSES` in `types.js`). |
 | **No scraping or OAuth email** | Nothing to build. Don't add "import from LinkedIn" or "connect Gmail". |
 | **Editable next-action memo field** | See "Next-action memo" under the card section below. |
 
@@ -48,7 +48,7 @@ The backend already supports all of this. These are the UI pieces the judges wil
 
 ## API contract
 
-Every request carries two things, and `src/api.ts` already adds both:
+Every request carries two things, and `src/api.js` already adds both:
 
 - `?today=YYYY-MM-DD`: the browser's **local** date, so the server never gets "today" wrong.
 - `X-Workspace-Id: <random id>`: created once and kept in localStorage. Each browser gets its own
@@ -74,6 +74,8 @@ Validation errors come back as `400 { "errors": { "company": "Company is require
 Show each message under its field.
 
 ### Types (copy exactly)
+
+_Shown as TypeScript for readability. The project is JavaScript: the same shapes live as JSDoc typedefs in `src/types.js`._
 
 ```ts
 export type Status = 'Applied' | 'Test' | 'Interview' | 'Offer' | 'Rejected'
@@ -129,7 +131,7 @@ export interface Dashboard {
 }
 ```
 
-**Before the backend is ready:** make `src/api.ts` return a hard-coded `Dashboard` object with about 8 fictional items.
+**Before the backend is ready:** make `src/api.js` return a hard-coded `Dashboard` object with about 8 fictional items.
 Keep the same function signatures, then switch to `fetch` once `/api/dashboard` is up.
 
 ---
@@ -240,9 +242,9 @@ Keep the same function signatures, then switch to `fetch` once `/api/dashboard` 
 
 | Minute | Goal |
 |---|---|
-| 0–10 | Layout shell, types, `api.ts` with mock Dashboard |
+| 0–10 | Layout shell, types, `api.js` with mock Dashboard |
 | 10–25 | Summary tiles, filter tabs, cards with badges, Upcoming deadlines |
-| 25–35 | Form + validation, status select, delete/undo, then switch `api.ts` to the real API |
+| 25–35 | Form + validation, status select, delete/undo, then switch `api.js` to the real API |
 | 35–40 | Run the judge path three times with the backend |
 | 40–60 | Minute 40 twist |
 | 60–80 | Insights panel, empty/error states, mobile pass, toasts polish |
