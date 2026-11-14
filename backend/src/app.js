@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import express from 'express'
 
+import { attachUser, authRouter, sameOrigin } from './auth.js'
+import { createMemoryAuthStore } from './auth-store.js'
 import { isValidISODate, serverToday } from './dates.js'
 import { toICS } from './ics.js'
 import { buildDashboard, present } from './rules.js'
@@ -27,6 +29,8 @@ export function createApp({
   serveFrontend = true,
   rateLimitPerMinute = 600,
   persistence = null,
+  authStore = createMemoryAuthStore(),
+  authAttemptsPerMinute = 10,
   ...storeOptions
 } = {}) {
   const store = createStore(storeOptions)
@@ -37,13 +41,16 @@ export function createApp({
   app.use(securityHeaders)
   app.use('/api', rateLimit({ windowMs: 60_000, max: rateLimitPerMinute }))
   app.use(express.json({ limit: '20kb' }))
+  app.use('/api', sameOrigin)
+  app.use('/api', attachUser(authStore))
+  app.use('/api/auth', authRouter({ authStore, attemptsPerMinute: authAttemptsPerMinute }))
 
   // Serverless hosts may answer each request from a different process, so a workspace is loaded
   // from the database before the request and saved right before the response goes out.
   if (persistence) {
     app.use('/api', async (req, res, next) => {
       const ws = workspaceFrom(req)
-      if (!ws || req.path === '/health') return next() // bad ids get their 400 from the route
+      if (!ws || req.path === '/health' || req.path.startsWith('/auth')) return next() // bad ids get their 400 from the route
       let saved = null
       try {
         saved = await persistence.load(ws)
@@ -72,6 +79,24 @@ export function createApp({
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true })
+  })
+
+  // "Show me what you store about me": the account (never the password hash) and its saved applications.
+  app.get('/api/me/data', async (req, res, next) => {
+    try {
+      if (!req.user) return res.status(401).json({ error: 'Sign in to see your data' })
+      const ctx = context(req, res)
+      if (!ctx) return
+      const account = await authStore.findUserByEmail(req.user.email)
+      res.setHeader('Cache-Control', 'no-store')
+      res.json({
+        user: { id: req.user.id, email: req.user.email, name: req.user.name || undefined, createdAt: account?.createdAt },
+        workspaceId: ctx.ws,
+        applications: store.list(ctx.ws, ctx.today),
+      })
+    } catch (err) {
+      next(err)
+    }
   })
 
   app.get('/api/dashboard', (req, res) => {

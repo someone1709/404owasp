@@ -47,10 +47,13 @@ const WORKSPACE_ID = /^[A-Za-z0-9_-]{8,64}$/
 export const SHARED_WORKSPACE = 'shared-demo'
 
 /**
- * Workspace from the X-Workspace-Id header. Missing means the shared demo
- * workspace (handy for curl); malformed is rejected.
+ * Which workspace a request works on.
+ *  - Signed in: the account's own workspace, so the data follows the user to any browser.
+ *  - Otherwise: the id in the X-Workspace-Id header (a random id each browser keeps).
+ *    Missing means the shared demo workspace (handy for curl); malformed is rejected (null).
  */
 export function workspaceFrom(req) {
+  if (req.user) return `u_${req.user.id}`
   const header = req.get('x-workspace-id')
   if (header === undefined) return SHARED_WORKSPACE
   return WORKSPACE_ID.test(header) ? header : null

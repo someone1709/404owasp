@@ -11,6 +11,7 @@ import { ResumePage } from './pages/Resume'
 
 import { Link, RouterContext, useRouter } from './router'
 
+import { AuthDialog } from './ui/AuthDialog'
 import { Cursor } from './ui/Cursor'
 import { AppForm } from './ui/Form'
 import { MenuOverlay } from './ui/MenuOverlay'
@@ -66,6 +67,8 @@ export default function App() {
   const [flash, setFlash] = useState(null)
   const [theme, setTheme] = useState(initialTheme)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [user, setUser] = useState(null) // the signed-in account, or null (accounts are optional)
+  const [authOpen, setAuthOpen] = useState(false)
   const menuRef = useRef(null)
   const [view, setViewState] = useState(initialView)
   const [palette, setPalette] = useState(false)
@@ -99,6 +102,10 @@ export default function App() {
 
   useEffect(() => {
     void reload()
+    api.me().then(
+      (r) => setUser(r.user),
+      () => {}, // no account service: carry on signed out
+    )
   }, [reload])
 
   const showToast = useCallback((text, opts = {}) => {
@@ -112,6 +119,29 @@ export default function App() {
   }, [toast])
 
   const notify = useCallback((text, tone = 'info') => showToast(text, { tone }), [showToast])
+
+  const onAuthed = async (signedIn, created) => {
+    setAuthOpen(false)
+    setUser(signedIn)
+    setFilter('all')
+    setQuery('')
+    await reload() // the data now comes from the account's workspace
+    showToast(
+      created ? `Welcome${signedIn.name ? `, ${signedIn.name}` : ''}! Your account is ready` : `Signed in as ${signedIn.email}`,
+    )
+  }
+
+  const signOut = async () => {
+    try {
+      await api.logout()
+    } catch {
+      /* the cookie is cleared on the next request anyway */
+    }
+    setAuthOpen(false)
+    setUser(null)
+    await reload() // back to this browser's own workspace
+    showToast('Signed out')
+  }
 
   /** Run a change, then refetch the dashboard (the spec's golden rule). */
   async function mutate(change, done) {
@@ -343,7 +373,15 @@ export default function App() {
         run: toggleTheme,
       },
       { id: 'a-reset', group: 'Actions', label: 'Reset demo data', icon: 'reset', run: resetDemo },
+      {
+        id: 'a-account',
+        group: 'Account',
+        label: user ? `Account (${user.email})` : 'Sign in or create an account',
+        icon: 'user',
+        run: () => setAuthOpen(true),
+      },
     )
+    if (user) items.push({ id: 'a-signout', group: 'Account', label: 'Sign out', icon: 'logout', run: () => void signOut() })
     for (const a of data?.items ?? []) {
       items.push({
         id: `app-${a.id}`,
@@ -356,7 +394,7 @@ export default function App() {
     }
     return items
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, theme, jumpTo, navigate])
+  }, [data, theme, user, jumpTo, navigate])
 
   // ----- render -----
 
@@ -380,6 +418,7 @@ export default function App() {
         notify,
         view,
         setView,
+        user,
       }
     : null
 
@@ -441,6 +480,22 @@ export default function App() {
             <TopNav items={PAGES.map((p) => ({ path: p.path, label: p.label, badge: p.path === '/applications' ? needs : 0 }))} />
 
             <div className="top-actions">
+              <button
+                type="button"
+                className={`account-btn${user ? ' in' : ''}`}
+                onClick={() => setAuthOpen(true)}
+                aria-label={user ? `Account: ${user.email}` : 'Sign in'}
+                data-cursor={user ? 'Account' : 'Sign in'}
+              >
+                {user ? (
+                  <span className="avatar">{(user.name || user.email)[0].toUpperCase()}</span>
+                ) : (
+                  <>
+                    <Icon name="user" size={15} />
+                    <span>Sign in</span>
+                  </>
+                )}
+              </button>
               <button
                 type="button"
                 className="theme-toggle"
@@ -551,6 +606,16 @@ export default function App() {
         )}
 
         <Palette open={palette} onClose={() => setPalette(false)} items={paletteItems} />
+        {authOpen && (
+          <AuthDialog
+            user={user}
+            onClose={() => setAuthOpen(false)}
+            onAuthed={(u, created) => void onAuthed(u, created)}
+            onSignOut={() => void signOut()}
+            notify={notify}
+          />
+        )}
+
         <MenuOverlay
           open={bigMenu}
           onClose={() => setBigMenu(false)}
@@ -574,6 +639,8 @@ export default function App() {
           onPalette={() => setPalette(true)}
           onExport={exportIcs}
           onTheme={toggleTheme}
+          onAccount={() => setAuthOpen(true)}
+          user={user}
           dark={theme === 'dark'}
         />
         <Cursor />

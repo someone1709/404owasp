@@ -79,6 +79,23 @@ export const api = {
   resetDemo: () => json('POST', '/demo/reset'),
   wipeAll: () => json('DELETE', '/applications'),
 
+  // ----- optional accounts (the session lives in an HttpOnly cookie the browser sends by itself) -----
+  me: () => json('GET', '/auth/me'),
+  register: (fields) => json('POST', '/auth/register', fields),
+  login: (fields) => json('POST', '/auth/login', fields),
+  logout: () => json('POST', '/auth/logout'),
+
+  /** Downloads everything stored about the signed-in user, as a JSON file. */
+  async downloadMyData() {
+    const blob = await (await send('GET', '/me/data')).blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'nextup-my-data.json'
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+
   /** Downloads upcoming deadlines as an .ics file for any calendar app. */
   async downloadCalendar() {
     const blob = await (await send('GET', '/export.ics')).blob()

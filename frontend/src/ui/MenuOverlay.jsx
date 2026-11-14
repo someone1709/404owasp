@@ -30,7 +30,20 @@ function Contours() {
 }
 
 /** Full-screen menu: huge type links, a neon squiggle on the current page, a "next deadline" widget. */
-export function MenuOverlay({ open, onClose, pages, next, onOpenNext, onNew, onPalette, onExport, onTheme, dark }) {
+export function MenuOverlay({
+  open,
+  onClose,
+  pages,
+  next,
+  onOpenNext,
+  onNew,
+  onPalette,
+  onExport,
+  onTheme,
+  onAccount,
+  user,
+  dark,
+}) {
   const { path } = useRoute()
   const [mounted, setMounted] = useState(open)
   const root = useRef(null)
@@ -141,6 +154,9 @@ export function MenuOverlay({ open, onClose, pages, next, onOpenNext, onNew, onP
           </button>
           <button type="button" className="mo-pill" onClick={act(onExport)}>
             <Icon name="download" size={14} /> Export .ics
+          </button>
+          <button type="button" className="mo-pill" onClick={act(onAccount)}>
+            <Icon name="user" size={14} /> {user ? 'Account' : 'Sign in'}
           </button>
           <button type="button" className="mo-pill" onClick={onTheme}>
             <Icon name={dark ? 'sun' : 'moon'} size={14} /> {dark ? 'Light' : 'Dark'} mode

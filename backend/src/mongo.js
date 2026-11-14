@@ -33,7 +33,8 @@ export function mongo(getCollection) {
 let cached
 let liveClient
 
-export function collectionFromUri(uri, dbName = 'nextup') {
+/** The (shared, lazily opened) database handle. Used by the workspace store and the auth store. */
+export function dbFromUri(uri, dbName = 'nextup') {
   const key = `${uri}|${dbName}`
   if (cached?.key === key) return cached.promise
 
@@ -42,10 +43,7 @@ export function collectionFromUri(uri, dbName = 'nextup') {
     const client = new MongoClient(uri, { appName: 'nextup', maxPoolSize: 5, serverSelectionTimeoutMS: 5000 })
     await client.connect()
     liveClient = client
-    const collection = client.db(dbName).collection(COLLECTION)
-    // Best effort: if the index already exists with other options, carry on without it.
-    await collection.createIndex({ updatedAt: 1 }, { expireAfterSeconds: TTL_SECONDS }).catch(() => {})
-    return collection
+    return client.db(dbName)
   })()
 
   cached = { key, promise }
@@ -53,6 +51,13 @@ export function collectionFromUri(uri, dbName = 'nextup') {
     if (cached?.promise === promise) cached = undefined // a failed connect is retried on the next request
   })
   return promise
+}
+
+export async function collectionFromUri(uri, dbName = 'nextup') {
+  const collection = (await dbFromUri(uri, dbName)).collection(COLLECTION)
+  // Best effort: if the index already exists with other options, carry on without it.
+  await collection.createIndex({ updatedAt: 1 }, { expireAfterSeconds: TTL_SECONDS }).catch(() => {})
+  return collection
 }
 
 /** MongoDB persistence from environment variables, or null when MONGODB_URI is not set. */

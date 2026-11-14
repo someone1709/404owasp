@@ -83,4 +83,13 @@ export const COMPANY_TYPES = ['Product', 'Service', 'Startup']
  * @property {(text: string, tone?: 'info' | 'error') => void} notify
  * @property {'list' | 'board'} view
  * @property {(v: 'list' | 'board') => void} setView
+ * @property {User | null} user the signed-in account, if any
+ */
+
+/**
+ * The signed-in account (accounts are optional).
+ * @typedef {object} User
+ * @property {string} id
+ * @property {string} email
+ * @property {string} [name]
  */

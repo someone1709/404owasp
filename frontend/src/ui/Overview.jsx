@@ -60,7 +60,7 @@ export function FunnelCard({ funnel }) {
   )
 }
 
-export function Hero({ data }) {
+export function Hero({ data, user }) {
   const n = data.summary.needsAction
   const thisWeek = data.deadlines.filter((d) => d.daysLeft >= 0 && d.daysLeft <= 7).length
   return (
@@ -85,7 +85,8 @@ export function Hero({ data }) {
         </p>
         <div className="hero-foot">
           <span className="privacy-chip">
-            <Icon name="lock" size={14} /> Demo data · no accounts · no tracking
+            <Icon name="lock" size={14} />{' '}
+            {user ? `Signed in as ${user.email} · saved to your account` : 'Demo data · accounts optional · no tracking'}
           </span>
           <span className="muted small">{plural(thisWeek, 'deadline')} in the next 7 days</span>
         </div>

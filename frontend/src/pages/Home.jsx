@@ -10,14 +10,14 @@ import { Ticker } from '../ui/Ticker'
 const PREVIEW = 3
 
 /** Overview: the day at a glance. The full lists live on their own pages. */
-export function HomePage({ data, setFilter, flashId, actions, jumpTo, exportIcs }) {
+export function HomePage({ user, data, setFilter, flashId, actions, jumpTo, exportIcs }) {
   const { navigate } = useRoute()
   const urgent = data.items.filter((i) => i.action.needsAction)
   const shown = urgent.slice(0, PREVIEW)
 
   return (
     <>
-      <Hero data={data} />
+      <Hero data={data} user={user} />
       <Ticker data={data} />
       <SummaryTiles
         data={data}

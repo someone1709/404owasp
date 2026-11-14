@@ -1,5 +1,7 @@
 # NextUp: Internship Tracker (VibeSprint PS-18)
 
+**Live app: https://404owasp.vercel.app** · Code: https://github.com/someone1709/404owasp · Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
 Students record internship applications (company, role, deadline, status), and NextUp tells them
 **what needs action next and why**: "Online test due in 2 days", "Interview tomorrow",
 "No reply in 16 days, send a follow-up".
@@ -100,29 +102,70 @@ New projects have **Deployment Protection** on, which asks visitors to sign in t
 ## Database
 
 By default there is none: data lives in server memory and resets on a restart. Set `MONGODB_URI` to
-keep it in **MongoDB** instead (the official `mongodb` driver; Atlas or any MongoDB 5+).
+keep it in **MongoDB** instead (the official `mongodb` driver; Atlas or any MongoDB 5+). The live app uses
+MongoDB Atlas.
 
-| | |
-|---|---|
-| Database / collection | `nextup` (override with `MONGODB_DB`) / `workspaces` |
-| Document | one per browser workspace: `{ _id: <workspace id>, applications: [ ...records ], updatedAt: <Date> }` |
-| Record fields | see `backend/src/types.js` (`ApplicationRecord`); at most 200 per workspace |
-| Expiry | a TTL index on `updatedAt` removes workspaces unchanged for 14 days |
-| Selected by | `MONGODB_URI` first, then Upstash Redis (`KV_REST_API_*`), then memory |
+### What is stored (database `nextup`, override with `MONGODB_DB`)
 
-Run it locally against MongoDB:
+| Collection | One document per | Contains | Expires |
+|---|---|---|---|
+| `workspaces` | browser, or signed-in account (`_id` = `u_<user id>`) | `{ _id, applications: [ ...records ], updatedAt }`: the internship applications (at most 200) | 14 days after the last change |
+| `users` | account | `{ _id, email, name, passwordHash, createdAt }`: the login credentials. `passwordHash` is a salted scrypt hash, never the password | never |
+| `sessions` | signed-in browser | `{ _id: sha256(cookie), userId, email, name, createdAt, expiresAt }`: who is logged in | 14 days (TTL index) |
+
+Indexes: unique on `users.email`, TTL on `sessions.expiresAt` and `workspaces.updatedAt`.
+Record fields are in `backend/src/types.js`. Which database is used: `MONGODB_URI` first, then Upstash Redis
+(`KV_REST_API_*`, workspaces only), then memory. Accounts are durable only with MongoDB.
+
+### How to look at it
+
+- **Atlas (easiest):** https://cloud.mongodb.com → your project → **Database → Browse Collections** → database
+  `nextup` → pick `users`, `sessions` or `workspaces`. Use the filter box, for example `{ "email": "you@example.com" }`.
+- **MongoDB Compass** (desktop app): connect with the same connection string.
+- **Terminal:**
+  ```bash
+  mongosh "$MONGODB_URI"
+  use nextup
+  db.users.find({}, { passwordHash: 0 })                 // every account, hiding the hash
+  db.users.countDocuments()                              // how many accounts
+  db.workspaces.find({ _id: /^u_/ })                     // signed-in users' data
+  db.workspaces.findOne({ _id: "u_<a user id>" }).applications
+  db.sessions.find({}, { _id: 0, email: 1, expiresAt: 1 })   // who is signed in right now
+  ```
+- **As a user:** sign in, click your avatar, then **Download my data**. It returns exactly what is stored about you
+  (account details and applications, never the password hash).
+
+### Run it locally against MongoDB
 
 ```bash
 docker run -d --name nextup-mongo -p 27017:27017 mongo:7
-MONGODB_URI=mongodb://localhost:27017 npm start        # http://localhost:4100, data now survives restarts
+MONGODB_URI=mongodb://localhost:27017 npm start        # http://localhost:4100, data and accounts now survive restarts
 ```
 
-To look at the data: **Atlas → Browse Collections → nextup → workspaces**, or MongoDB Compass, or
-`mongosh "$MONGODB_URI" --eval 'db.getSiblingDB("nextup").workspaces.find()'`.
-Find your own workspace id in the browser console with `localStorage.getItem('nextup:workspace')`.
-
-Tests run against a fake collection by default. To run the real-database test as well:
+Tests run against fake collections by default. To run the real-database tests as well:
 `MONGODB_TEST_URI=mongodb://localhost:27017 npm test`.
+
+## Accounts (optional)
+
+The app works without an account: your data stays private to your browser. **Sign in** (top bar) to keep it on an
+account, so it follows you to any browser or device. Accounts need no extra setup; with `MONGODB_URI` set they are
+stored in MongoDB, otherwise in memory.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/auth/register` | `{ email, password, name? }` creates the account and signs in |
+| `POST /api/auth/login` | `{ email, password }` signs in |
+| `POST /api/auth/logout` | ends the session |
+| `GET /api/auth/me` | the signed-in user, or `{ "user": null }` |
+| `GET /api/me/data` | everything stored about you (signed in) |
+
+How it is kept safe:
+- **Passwords** are hashed with scrypt (built into Node) and a random salt per user. The plain password is never stored or logged.
+- **Sessions** use a random 256-bit token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` on HTTPS). The database keeps only
+  its SHA-256 hash, so a database leak does not hand out logins, and logging out really ends the session.
+- **Sign-in errors** are one generic message ("Invalid email or password"), and take the same time whether or not the email
+  exists. Attempts are rate limited (10 per minute per IP). Passwords are 8 to 128 characters.
+- **Cross-site requests** that change data are refused (`Origin` check on top of `SameSite`).
 
 ## Judge verification path
 
@@ -183,6 +226,9 @@ backend/   Express 5, JavaScript ES modules (runs directly on Node, no build ste
   src/security.js    security headers, rate limit, workspace id
   src/ics.js         calendar export
   src/mongo.js       optional MongoDB storage (on when MONGODB_URI is set)
+  src/auth.js        optional accounts: register, login, logout, sessions, cross-site check
+  src/auth-store.js  users + sessions in memory or MongoDB
+  src/passwords.js   scrypt password hashing
   src/persistence.js picks a database from the environment: MongoDB, else Upstash Redis, else memory
   src/vercel.js      serverless entry point for Vercel
 vercel.json       Vercel config (frontend + backend services)
@@ -192,7 +238,8 @@ frontend/  Vite + React, JavaScript (JSX) (see FRONTEND_SPEC.md)
   src/pages/         Overview (/), Applications, Deadlines, Insights, Resume Lab
   src/resumeStore.js local resume vault (IndexedDB, never uploaded)
   src/fx.js          pointer effects, scroll engine (reveals, depth, pinning), confetti
-  src/fx.css         menu, palette, board, timeline, resume and hover styles
+  src/fx.css         menu, palette, board, timeline, resume, account and hover styles
+  src/ui/AuthDialog.jsx  sign in / create account / your account
   src/ui/            hero + funnel, summary tiles, cards, form, side panels
   src/styles.css     design tokens (light + dark) and layout
   src/api.js         API client
@@ -203,18 +250,20 @@ frontend/  Vite + React, JavaScript (JSX) (see FRONTEND_SPEC.md)
 
 | Risk area | What we did |
 |---|---|
-| Broken access control | Each browser gets a random workspace id, so visitors never see each other's data |
+| Broken access control | Each browser gets a random workspace id, and each account its own workspace, so visitors never see each other's data |
+| Authentication | Optional accounts: scrypt-hashed passwords, hashed `HttpOnly` session tokens, generic login errors, rate limiting, cross-site request check (see Accounts) |
 | Injection / XSS | React renders user text as text. Links must be `http(s)`, which blocks `javascript:`. Strict Content-Security-Policy. Control characters are stripped |
 | Insecure design | All validation happens on the server. Only known fields are accepted, so a client can't set `id`, `history` or `createdAt` |
 | Resource abuse | 20 kB body limit, 200 applications per workspace, 500 workspaces, 600 requests/min per IP |
 | Misconfiguration | Security headers (`nosniff`, frame denial, no referrer). `X-Powered-By` is off. No stack traces are sent to clients |
 | Untrusted files | Resumes never leave the browser (no upload endpoint). Type, size and file signature are validated, files are only downloaded, never opened or rendered |
-| Secrets & privacy | No secrets, no `.env`, no external calls, no tracking. All demo data is fictional (`.example` domains) |
+| Secrets & privacy | No secrets in the repo (`MONGODB_URI` lives only in the host's environment; `.env` files are git-ignored), no external calls, no tracking. All demo data is fictional (`.example` domains) |
 
 ## Known limits
 
 - Locally and on Render, data lives in server memory, so it resets when the server restarts or sleeps.
   With a database configured (MongoDB, or Redis) it is kept there; workspaces expire after 14 days without a change.
 - The rate limiter counts requests per server copy, so on Vercel it is a soft limit.
-- The workspace id keeps visitors apart but isn't a login. Anyone who has the id can read that
-  workspace.
+- Without an account, the workspace id keeps visitors apart but isn't a login: anyone who has the id can read that
+  workspace. Sign in to protect your data with a password.
+- No email verification or password reset yet: a forgotten password cannot be recovered.

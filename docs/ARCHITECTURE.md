@@ -127,6 +127,10 @@ flowchart TD
 | DELETE | `/api/applications` | wipe the workspace |
 | POST | `/api/demo/reset` | reload demo data |
 | GET | `/api/export.ics` | upcoming deadlines as a calendar file |
+| POST | `/api/auth/register`, `/api/auth/login` | optional accounts: create or sign in (sets the session cookie) |
+| POST | `/api/auth/logout` | end the session |
+| GET | `/api/auth/me` | the signed-in user, or `null` |
+| GET | `/api/me/data` | everything stored about the signed-in user |
 
 Every request carries `X-Workspace-Id` (random id kept in the browser) and `?today=YYYY-MM-DD`
 (the browser's local date), so the server never guesses the day.
@@ -211,6 +215,8 @@ erDiagram
 | Redis (optional) | Upstash over REST, if MongoDB is not set | `nextup:ws:<workspace-id>` = JSON array, expires after 14 days |
 | Browser | IndexedDB `nextup-resumes` / `files` | resume file per version label (never uploaded) |
 | Browser | localStorage | `nextup:workspace`, `nextup:theme`, `nextup:view` |
+| MongoDB `users` | one document per account | `{ _id, email (unique), name, passwordHash (scrypt), createdAt }` |
+| MongoDB `sessions` | one document per login | `{ _id: sha256(cookie token), userId, email, name, createdAt, expiresAt }`, TTL index removes expired ones |
 
 ## 6. Deployment
 
@@ -236,12 +242,41 @@ flowchart LR
 Run locally with `npm run serve`. On Vercel, requests to `/api/*` go to the backend service and everything
 else to the frontend; without a database the function falls back to memory, which can reset between requests.
 
-## 7. Security controls
+## 7. Accounts (optional)
+
+Without an account the workspace is chosen by the `X-Workspace-Id` header (a random id per browser). With one, the
+session cookie decides, and the workspace becomes `u_<user id>`, so the data follows the user.
+
+```mermaid
+sequenceDiagram
+  actor U as User
+  participant D as AuthDialog.jsx
+  participant S as Express /api/auth
+  participant DB as MongoDB
+
+  U->>D: email + password
+  D->>S: POST /api/auth/register (or /login)
+  S->>S: validate, rate limit, Origin check
+  alt register
+    S->>S: scrypt(password, random salt)
+    S->>DB: users.insertOne (unique email)
+  else login
+    S->>DB: users.findOne({ email })
+    S->>S: scrypt verify (dummy hash if unknown email)
+  end
+  S->>S: token = 32 random bytes
+  S->>DB: sessions.insertOne({ _id: sha256(token), ... })
+  S-->>D: 200/201 { user } + Set-Cookie: nextup_session (HttpOnly, SameSite=Lax)
+  Note over D,S: Later requests carry the cookie. attachUser looks up sha256(cookie) in sessions and sets req.user,<br/>which switches the workspace to u_(user id).
+```
+
+## 8. Security controls
 
 | Risk | Control |
 |---|---|
 | Injection / XSS | React renders text as text, no `dangerouslySetInnerHTML`; links limited to `http(s)`; strict CSP (no inline scripts, no CDNs) |
-| Broken access control | per-browser workspace id; clients can only set allow-listed fields (never `id`, `history`, `createdAt`) |
+| Broken access control | per-browser workspace id, or a per-account workspace when signed in; clients can only set allow-listed fields (never `id`, `history`, `createdAt`) |
+| Authentication | scrypt-hashed passwords with per-user salt; random session token in an HttpOnly, SameSite=Lax cookie, only its hash stored; generic login error, equal timing, rate limit; `Origin` check on state changes |
 | Input abuse | all validation on the server; 20 kB body limit; 200 records per workspace; 600 requests per minute per IP |
 | Unsafe files | resumes stay in the browser; type, size and file signature checked; download only, never rendered |
 | Misconfiguration | security headers on every response; no stack traces to clients; `X-Powered-By` off |
