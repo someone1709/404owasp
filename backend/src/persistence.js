@@ -1,11 +1,12 @@
-// Optional persistence for hosts where no single server process stays alive (Vercel).
-// Locally and on a long-running host (Render) nothing is configured and data stays in memory.
+// Optional persistence for hosts where no single server process stays alive (Vercel), or when data
+// should survive a restart. With nothing configured, data stays in memory.
 //
-// Each workspace is stored as one JSON value in Redis, reached over its REST API with plain
-// fetch (no SDK, no extra dependency). Works with Upstash Redis, which Vercel's Marketplace
-// connects with these environment variables (either name pair is accepted):
-//   KV_REST_API_URL + KV_REST_API_TOKEN       or
-//   UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
+// A database is chosen from environment variables, first match wins:
+//   1. MongoDB   MONGODB_URI (+ MONGODB_DB)                           see mongo.js
+//   2. Redis     KV_REST_API_URL + KV_REST_API_TOKEN, or the UPSTASH_REDIS_REST_* pair
+//      Each workspace is one JSON value, reached over Upstash's REST API with plain fetch (no SDK).
+
+import { mongoFromEnv } from './mongo.js'
 
 const KEY_PREFIX = 'nextup:ws:'
 const TTL_SECONDS = 14 * 24 * 60 * 60 // idle workspaces expire after two weeks
@@ -39,6 +40,8 @@ export function upstash(url, token, fetchFn = fetch) {
 
 /** Persistence from environment variables, or null (plain in-memory) when none are set. */
 export function persistenceFromEnv(env = process.env) {
+  const fromMongo = mongoFromEnv(env)
+  if (fromMongo) return fromMongo
   const url = env.KV_REST_API_URL ?? env.UPSTASH_REDIS_REST_URL
   const token = env.KV_REST_API_TOKEN ?? env.UPSTASH_REDIS_REST_TOKEN
   return url && token ? upstash(url, token) : null

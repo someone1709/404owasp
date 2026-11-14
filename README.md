@@ -69,15 +69,23 @@ vercel deploy --prod    # production
 Or import the repository in the Vercel dashboard (**Add New → Project**); services are detected on
 their own and the settings come from `vercel.json`.
 
-**Add a database so data survives** (strongly recommended): open the project's **Storage** tab, add
-**Upstash Redis** from the Marketplace and connect it to the project. That sets `KV_REST_API_URL` and
-`KV_REST_API_TOKEN`. Then redeploy.
+**Add a database so data survives** (strongly recommended). The app uses **MongoDB** when
+`MONGODB_URI` is set (see [Database](#database)). The quickest way on Vercel:
+
+1. Create a free **MongoDB Atlas** cluster (M0) and a database user. Under **Network Access** allow
+   `0.0.0.0/0`, because Vercel functions do not have fixed IP addresses. (Or add the **MongoDB Atlas**
+   integration from the Vercel Marketplace, which does this and sets the variable for you.)
+2. In Atlas choose **Connect → Drivers** and copy the connection string.
+3. Add it to the Vercel project as `MONGODB_URI` (Project → Settings → Environment Variables, or
+   `vercel env add MONGODB_URI production` and paste it at the prompt). It is a secret: never commit it.
+4. Redeploy (`vercel deploy --prod`).
 
 Why it matters: Vercel runs the backend as short-lived functions, and different requests can be
-answered by different copies, so in-memory data can appear to come and go. With Redis configured
+answered by different copies, so in-memory data can appear to come and go. With a database configured,
 each workspace is loaded before a request and saved right before the response, so every copy agrees
-(the last write wins if two copies write at the same instant). If Redis is unreachable the app keeps
-working from memory instead of failing. Without Redis it still deploys, but expect data to reset.
+(the last write wins if two copies write at the same instant). If the database is unreachable the app
+keeps working from memory instead of failing. Without one it still deploys, but expect data to reset.
+Upstash Redis (`KV_REST_API_URL` + `KV_REST_API_TOKEN`) also works, if MongoDB is not set.
 
 New projects have **Deployment Protection** on, which asks visitors to sign in to Vercel. Turn it off
 (Project → Settings → Deployment Protection) for a link anyone can open.
@@ -88,6 +96,33 @@ New projects have **Deployment Protection** on, which asks visitors to sign in t
 - `PORT` is set by Render, so there's nothing else to configure. Data stays in memory (one long-running
   process), so no database is needed there.
 - The free tier sleeps when idle, so open the link a minute before judging.
+
+## Database
+
+By default there is none: data lives in server memory and resets on a restart. Set `MONGODB_URI` to
+keep it in **MongoDB** instead (the official `mongodb` driver; Atlas or any MongoDB 5+).
+
+| | |
+|---|---|
+| Database / collection | `nextup` (override with `MONGODB_DB`) / `workspaces` |
+| Document | one per browser workspace: `{ _id: <workspace id>, applications: [ ...records ], updatedAt: <Date> }` |
+| Record fields | see `backend/src/types.js` (`ApplicationRecord`); at most 200 per workspace |
+| Expiry | a TTL index on `updatedAt` removes workspaces unchanged for 14 days |
+| Selected by | `MONGODB_URI` first, then Upstash Redis (`KV_REST_API_*`), then memory |
+
+Run it locally against MongoDB:
+
+```bash
+docker run -d --name nextup-mongo -p 27017:27017 mongo:7
+MONGODB_URI=mongodb://localhost:27017 npm start        # http://localhost:4100, data now survives restarts
+```
+
+To look at the data: **Atlas → Browse Collections → nextup → workspaces**, or MongoDB Compass, or
+`mongosh "$MONGODB_URI" --eval 'db.getSiblingDB("nextup").workspaces.find()'`.
+Find your own workspace id in the browser console with `localStorage.getItem('nextup:workspace')`.
+
+Tests run against a fake collection by default. To run the real-database test as well:
+`MONGODB_TEST_URI=mongodb://localhost:27017 npm test`.
 
 ## Judge verification path
 
@@ -147,7 +182,8 @@ backend/   Express 5, JavaScript ES modules (runs directly on Node, no build ste
   src/seed.js        fictional demo data, dates relative to today
   src/security.js    security headers, rate limit, workspace id
   src/ics.js         calendar export
-  src/persistence.js optional Redis saving for serverless hosts (off unless configured)
+  src/mongo.js       optional MongoDB storage (on when MONGODB_URI is set)
+  src/persistence.js picks a database from the environment: MongoDB, else Upstash Redis, else memory
   src/vercel.js      serverless entry point for Vercel
 vercel.json       Vercel config (frontend + backend services)
 frontend/  Vite + React, JavaScript (JSX) (see FRONTEND_SPEC.md)
@@ -178,7 +214,7 @@ frontend/  Vite + React, JavaScript (JSX) (see FRONTEND_SPEC.md)
 ## Known limits
 
 - Locally and on Render, data lives in server memory, so it resets when the server restarts or sleeps.
-  On Vercel it is kept in Redis (see above); workspaces expire after 14 days without a change.
+  With a database configured (MongoDB, or Redis) it is kept there; workspaces expire after 14 days without a change.
 - The rate limiter counts requests per server copy, so on Vercel it is a soft limit.
 - The workspace id keeps visitors apart but isn't a login. Anyone who has the id can read that
   workspace.

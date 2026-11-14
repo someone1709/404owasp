@@ -20,7 +20,7 @@ flowchart LR
     RULES["Rules engine<br/>rules.js, insights.js"]
     STORE[("In-memory store<br/>Map of workspaces")]
   end
-  REDIS[("Upstash Redis<br/>optional")]
+  DB[("MongoDB<br/>optional (or Redis)")]
 
   SPA --> API
   SPA --- LS
@@ -29,7 +29,7 @@ flowchart LR
   PIPE --> ROUTES
   ROUTES --> RULES
   ROUTES --> STORE
-  PIPE -. "load / save workspace<br/>(serverless only)" .-> REDIS
+  PIPE -. "load / save workspace<br/>(when a database is set)" .-> DB
 ```
 
 Resume files never reach the server: they are stored in IndexedDB only.
@@ -94,7 +94,7 @@ flowchart TD
   H --> RL["rateLimit /api<br/>600 per minute per IP"]
   RL --> JSON["express.json<br/>20 kB limit"]
   JSON --> P{"persistence<br/>configured?"}
-  P -- yes --> LOAD["load workspace from Redis<br/>store.adopt()"]
+  P -- yes --> LOAD["load workspace from the database<br/>store.adopt()"]
   P -- no --> CTX
   LOAD --> CTX["context()<br/>workspaceFrom(header), today from ?today="]
   CTX -- "invalid id" --> E400["400"]
@@ -107,7 +107,7 @@ flowchart TD
   R --> OUT["JSON response"]
   INS --> OUT
   OUT --> SAVE{"changed, or<br/>first visit?"}
-  SAVE -- "yes + persistence" --> RSAVE["save workspace to Redis<br/>(before the response ends)"]
+  SAVE -- "yes + persistence" --> RSAVE["save workspace to the database<br/>(before the response ends)"]
   SAVE -- no --> DONE["response sent"]
   RSAVE --> DONE
 ```
@@ -207,7 +207,8 @@ erDiagram
 | Store | Technology | Key and contents |
 |---|---|---|
 | Server memory (default) | JavaScript `Map` | workspace id to `ApplicationRecord[]`. 200 records per workspace, 500 workspaces |
-| Redis (optional, serverless) | Upstash over REST | `nextup:ws:<workspace-id>` = JSON array, expires after 14 days |
+| MongoDB (optional) | `mongodb` driver, set by `MONGODB_URI` | database `nextup`, collection `workspaces`: one document per workspace `{ _id, applications[], updatedAt }`, TTL index removes it after 14 days |
+| Redis (optional) | Upstash over REST, if MongoDB is not set | `nextup:ws:<workspace-id>` = JSON array, expires after 14 days |
 | Browser | IndexedDB `nextup-resumes` / `files` | resume file per version label (never uploaded) |
 | Browser | localStorage | `nextup:workspace`, `nextup:theme`, `nextup:view` |
 
@@ -226,14 +227,14 @@ flowchart LR
   subgraph Vercel["Vercel project: two services"]
     CDN["frontend service<br/>Vite build on the CDN"]
     FN["backend service<br/>Express function (src/vercel.js)"]
-    RED[("Upstash Redis<br/>KV_REST_API_URL / TOKEN")]
+    RED[("MongoDB Atlas<br/>MONGODB_URI")]
     CDN -- "/api/*" --> FN
     FN -.-> RED
   end
 ```
 
 Run locally with `npm run serve`. On Vercel, requests to `/api/*` go to the backend service and everything
-else to the frontend; without Redis the function falls back to memory, which can reset between requests.
+else to the frontend; without a database the function falls back to memory, which can reset between requests.
 
 ## 7. Security controls
 
@@ -244,4 +245,4 @@ else to the frontend; without Redis the function falls back to memory, which can
 | Input abuse | all validation on the server; 20 kB body limit; 200 records per workspace; 600 requests per minute per IP |
 | Unsafe files | resumes stay in the browser; type, size and file signature checked; download only, never rendered |
 | Misconfiguration | security headers on every response; no stack traces to clients; `X-Powered-By` off |
-| Secrets | none in the repo; Redis credentials only as Vercel environment variables |
+| Secrets | none in the repo; the database connection string (`MONGODB_URI`) only as a Vercel environment variable, and `.env` files are git-ignored |
