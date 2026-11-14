@@ -30,7 +30,7 @@ export function createApp({
   rateLimitPerMinute = 600,
   persistence = null,
   authStore = createMemoryAuthStore(),
-  authAttemptsPerMinute = 10,
+  authAttemptsPerMinute = 30,
   ...storeOptions
 } = {}) {
   const store = createStore(storeOptions)

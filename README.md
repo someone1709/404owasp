@@ -164,7 +164,7 @@ How it is kept safe:
 - **Sessions** use a random 256-bit token in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` on HTTPS). The database keeps only
   its SHA-256 hash, so a database leak does not hand out logins, and logging out really ends the session.
 - **Sign-in errors** are one generic message ("Invalid email or password"), and take the same time whether or not the email
-  exists. Attempts are rate limited (10 per minute per IP). Passwords are 8 to 128 characters.
+  exists. Attempts are rate limited (30 per minute per IP, so a shared venue network is fine). Passwords are 8 to 128 characters.
 - **Cross-site requests** that change data are refused (`Origin` check on top of `SameSite`).
 
 ## Judge verification path

@@ -92,7 +92,7 @@ export function sameOrigin(req, res, next) {
   next()
 }
 
-export function authRouter({ authStore, attemptsPerMinute = 10 }) {
+export function authRouter({ authStore, attemptsPerMinute = 30 }) {
   const router = express.Router()
   const limit = rateLimit({ windowMs: 60_000, max: attemptsPerMinute })
   router.use((_req, res, next) => {
